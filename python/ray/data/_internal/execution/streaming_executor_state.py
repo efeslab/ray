@@ -28,6 +28,9 @@ from ray.data._internal.execution.interfaces.physical_operator import (
 from ray.data._internal.execution.operators.base_physical_operator import (
     AllToAllOperator,
 )
+from ray.data._internal.execution.operators.actor_pool_map_operator import (
+    ActorPoolMapOperator,
+)
 from ray.data._internal.execution.operators.input_data_buffer import InputDataBuffer
 from ray.data._internal.execution.resource_manager import ResourceManager
 from ray.data._internal.progress_bar import ProgressBar
@@ -359,7 +362,8 @@ def build_streaming_topology(
     """
 
     topology: Topology = {}
-
+    actor_init_refs = []
+    
     # DFS walk to wire up operator states.
     def setup_state(op: PhysicalOperator) -> OpState:
         if op in topology:
@@ -375,9 +379,28 @@ def build_streaming_topology(
         op_state = OpState(op, inqueues)
         topology[op] = op_state
         op.start(options)
+        
+        # Collect pending actor refs if this is ActorPoolMapOperator
+        if isinstance(op, ActorPoolMapOperator):
+            actor_init_refs.extend(op._actor_pool.get_pending_actor_refs())
+            
         return op_state
 
     setup_state(dag)
+    
+    # TODO: do a synchronization here to wait for all operators to be ready by calling ray.get
+    
+    # Wait for all ActorPoolMapOperator to be ready at once
+    if actor_init_refs:
+        logger.info(f"Waiting for {len(actor_init_refs)} ActorPoolMapOperator actors to start...")
+        try:
+            ray.get(actor_init_refs, timeout=DataContext.get_current().wait_for_min_actors_s)
+        except ray.exceptions.GetTimeoutError:
+            raise ray.exceptions.GetTimeoutError(
+                "Timed out while starting actors for ActorPoolMapOperator. "
+                "Cluster might not have enough resources."
+            )
+        
 
     # Create the progress bars starting from the first operator to run.
     # Note that the topology dict is in topological sort order. Index zero is reserved

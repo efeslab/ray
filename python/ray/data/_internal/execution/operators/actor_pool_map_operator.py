@@ -1,4 +1,6 @@
 import logging
+import threading
+import time
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Union
 
@@ -28,8 +30,11 @@ logger = logging.getLogger(__name__)
 
 # Higher values here are better for prefetching and locality. It's ok for this to be
 # fairly high since streaming backpressure prevents us from overloading actors.
-DEFAULT_MAX_TASKS_IN_FLIGHT = 4
+DEFAULT_MAX_TASKS_IN_FLIGHT = 8
 
+TASK_GAP = 15
+task_count = 0
+task_count_lock = threading.Lock()
 
 class ActorPoolMapOperator(MapOperator):
     """A MapOperator implementation that executes tasks on an actor pool.
@@ -130,6 +135,8 @@ class ActorPoolMapOperator(MapOperator):
         self._cls = None
         # Whether no more submittable bundles will be added.
         self._inputs_done = False
+        
+        logger.info(f"{self._name}: Actor pool")
 
     def internal_queue_size(self) -> int:
         return len(self._bundle_queue)
@@ -141,22 +148,22 @@ class ActorPoolMapOperator(MapOperator):
         # Create the actor workers and add them to the pool.
         self._cls = ray.remote(**self._ray_remote_args)(_MapWorker)
         self._actor_pool.scale_up(self._actor_pool.min_size())
-        refs = self._actor_pool.get_pending_actor_refs()
+        # refs = self._actor_pool.get_pending_actor_refs()
 
-        # We synchronously wait for the initial number of actors to start. This avoids
-        # situations where the scheduler is unable to schedule downstream operators
-        # due to lack of available actors, causing an initial "pileup" of objects on
-        # upstream operators, leading to a spike in memory usage prior to steady state.
-        logger.debug(f"{self._name}: Waiting for {len(refs)} pool actors to start...")
-        try:
-            timeout = self.data_context.wait_for_min_actors_s
-            ray.get(refs, timeout=timeout)
-        except ray.exceptions.GetTimeoutError:
-            raise ray.exceptions.GetTimeoutError(
-                "Timed out while starting actors. "
-                "This may mean that the cluster does not have "
-                "enough resources for the requested actor pool."
-            )
+        # # We synchronously wait for the initial number of actors to start. This avoids
+        # # situations where the scheduler is unable to schedule downstream operators
+        # # due to lack of available actors, causing an initial "pileup" of objects on
+        # # upstream operators, leading to a spike in memory usage prior to steady state.
+        # logger.debug(f"{self._name}: Waiting for {len(refs)} pool actors to start...")
+        # try:
+        #     timeout = self.data_context.wait_for_min_actors_s
+        #     ray.get(refs, timeout=timeout)
+        # except ray.exceptions.GetTimeoutError:
+        #     raise ray.exceptions.GetTimeoutError(
+        #         "Timed out while starting actors. "
+        #         "This may mean that the cluster does not have "
+        #         "enough resources for the requested actor pool."
+        # )
 
     def should_add_input(self) -> bool:
         return self._actor_pool.num_free_slots() > 0
@@ -401,6 +408,7 @@ class _MapWorker:
         self._map_transformer = map_transformer
         # Initialize state for this actor.
         self._map_transformer.init()
+        logger.info(f"MapWorker {self.src_fn_name} initialized.")
 
     def get_location(self) -> NodeIdStr:
         return ray.get_runtime_context().get_node_id()
@@ -412,6 +420,12 @@ class _MapWorker:
         *blocks: Block,
         **kwargs: Dict[str, Any],
     ) -> Iterator[Union[Block, List[BlockMetadata]]]:
+        global task_count, task_count_lock
+        if self.src_fn_name == "MapBatches(vLLMEngineStageUDF)" and task_count < 4:
+            time.sleep(TASK_GAP * (task_count % 4))
+            with task_count_lock:
+                task_count += 1
+            
         yield from _map_task(
             self._map_transformer,
             data_context,
