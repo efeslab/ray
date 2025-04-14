@@ -248,11 +248,13 @@ class OpState:
         """Move a bundle produced by the operator to its outqueue."""
         self.outqueue.append(ref)
         self.num_completed_tasks += 1
+        self.op.metrics.num_task_outputs_generated += 1
         if self.progress_bar:
             assert (
                 ref.num_rows() is not None
             ), "RefBundle must have a valid number of rows"
             self.progress_bar.update(ref.num_rows(), self.op.num_output_rows_total())
+            self.op.metrics.rows_task_outputs_generated += ref.num_rows()
         active, restarting, pending = self.op.actor_info_counts()
         self.op.metrics.num_alive_actors = active
         self.op.metrics.num_restarting_actors = restarting

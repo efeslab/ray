@@ -622,7 +622,6 @@ class OpRuntimeMetrics(metaclass=OpRuntimesMetricsMeta):
         num_outputs = len(output)
         output_bytes = output.size_bytes()
 
-        self.num_task_outputs_generated += num_outputs
         self.bytes_task_outputs_generated += output_bytes
 
         task_info = self._running_tasks[task_index]
@@ -636,8 +635,6 @@ class OpRuntimeMetrics(metaclass=OpRuntimesMetricsMeta):
                 meta.exec_stats is not None and meta.exec_stats.wall_time_s is not None
             )
             self.block_generation_time += meta.exec_stats.wall_time_s
-            assert meta.num_rows is not None
-            self.rows_task_outputs_generated += meta.num_rows
             trace_allocation(block_ref, "operator_output")
             if meta.exec_stats.max_uss_bytes is not None:
                 if self._cum_max_uss_bytes is None:
