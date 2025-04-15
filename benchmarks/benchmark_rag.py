@@ -86,23 +86,52 @@ def load_triviaqa_prompts(path, num_prompts):
     return [item["Question"] for item in all_data[:num_prompts]]
 
 
-def run_ray_data_rag(requests, model, retrieve_batch_size, docs_path, index_path, topk, nprobe, output_dir):
+def run_ray_data_rag(requests, model, retrieve_batch_size, docs_path, index_path, topk, nprobe, output_dir, mode):
+    if mode == "ray_data_static":
+        configuration = {
+            "ContrieverEncoder": {
+                "batch_size": retrieve_batch_size,
+                "concurrency": 2,
+                "num_cpus": 16,
+            },
+            "Retriever": {
+                "batch_size": retrieve_batch_size,
+                "concurrency": 2,
+                "num_cpus": 16,
+            },
+        }
+    elif mode == "ray_data_dynamic":
+        configuration = {
+            "ContrieverEncoder": {
+                "batch_size": retrieve_batch_size,
+                "concurrency": (1, 4),
+                "num_cpus": 16,
+            },
+            "Retriever": {
+                "batch_size": retrieve_batch_size,
+                "concurrency": (1, 4),
+                "num_cpus": 16,
+            },
+        }
+    else:
+        raise ValueError(f"Unsupported mode: {mode}")
+    
     ds = ray.data.from_items([{"query": q} for q in requests])
 
     ds = ds.map_batches(
         ContrieverEncoder,
         fn_constructor_args=[64],
-        batch_size=retrieve_batch_size,
-        concurrency=2,
-        num_cpus=32,
+        batch_size=configuration["ContrieverEncoder"]["batch_size"],
+        concurrency=configuration["ContrieverEncoder"]["concurrency"],
+        num_cpus=configuration["ContrieverEncoder"]["num_cpus"],
     )
 
     ds = ds.map_batches(
         Retriever,
         fn_constructor_args=[docs_path, index_path, topk, nprobe, 64],
-        batch_size=retrieve_batch_size,
-        concurrency=2,
-        num_cpus=32,
+        batch_size=configuration["Retriever"]["batch_size"],
+        concurrency=configuration["Retriever"]["concurrency"],
+        num_cpus=configuration["Retriever"]["num_cpus"],
     )
 
     ds = ds.map(build_prompt, concurrency=4)
@@ -200,7 +229,7 @@ if __name__ == "__main__":
     parser.add_argument("--retrieve-batch-size", type=int, default=256)
     parser.add_argument("--topk", type=int, default=5)
     parser.add_argument("--output-dir", type=str, default="/home/yilegu/ray/logs")
-    parser.add_argument("--mode", type=str, choices=["ray_data", "staged_batch"], default="ray_data")
+    parser.add_argument("--mode", type=str, choices=["ray_data_static", "ray_data_dynamic", "staged_batch"], default="ray_data_dynamic")
     args = parser.parse_args()
 
     time_prefix = time.strftime("%Y-%m-%d_%H-%M-%S", time.localtime())
@@ -222,8 +251,8 @@ if __name__ == "__main__":
     logging.info("Loading Queries...")
     requests = load_triviaqa_prompts(args.dataset, args.num_prompts)
 
-    if args.mode == "ray_data":
-        logging.info("Running RAG Benchmark: Ray Data mode...")
+    if args.mode == "ray_data_static" or args.mode == "ray_data_dynamic":
+        logging.info(f"Running RAG Benchmark: {args.mode} mode...")
         elapsed_time = run_ray_data_rag(
             requests,
             args.model,
@@ -233,6 +262,7 @@ if __name__ == "__main__":
             args.topk,
             args.nprobe,
             output_dir,
+            args.mode
         )
     elif args.mode == "staged_batch":
         logging.info("Running RAG Benchmark: staged_batch async mode...")
