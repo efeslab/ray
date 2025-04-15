@@ -1,22 +1,26 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Benchmark Ray Data RAG using FAISS IVF Index with Contriever (CPU-only retrieval)"""
+"""Benchmark RAG using FAISS + Contriever with Ray Data or staged batch baseline"""
 
-import ray
-import ray.data
-import json
-import faiss
-import argparse
 import os
-import logging
-import threading
+import json
 import time
+import uuid
+import faiss
+import torch
+import argparse
+import logging
+import asyncio
 import random
 import numpy as np
-from collections import defaultdict
+import ray
+import ray.data
+
 from tqdm import tqdm
+from collections import defaultdict
+from typing import List
 from transformers import AutoTokenizer, AutoModel
-import torch
 from ray.data.llm import vLLMEngineProcessorConfig, build_llm_processor
+from vllm import AsyncLLMEngine, SamplingParams, inputs
 
 
 class ContrieverEncoder:
@@ -24,7 +28,6 @@ class ContrieverEncoder:
         self.tokenizer = AutoTokenizer.from_pretrained("facebook/contriever")
         self.model = AutoModel.from_pretrained("facebook/contriever").to("cpu")
         self.model.eval()
-        # logging.info(f"debug: {self.batch_size}")
         self.batch_size = batch_size
 
     def __call__(self, rows: dict):
@@ -41,17 +44,26 @@ class ContrieverEncoder:
 
 
 class Retriever:
-    def __init__(self, docs_path, index_path, topk=5, nprobe=512):
+    def __init__(self, docs_path, index_path, topk=5, nprobe=512, batch_size=64):
         with open(docs_path) as f:
             self.docs = json.load(f)
         self.docs = [item["content"] for item in self.docs]
         self.index = faiss.read_index(index_path)
         self.index.nprobe = nprobe
         self.k = topk
+        self.batch_size = batch_size
 
     def __call__(self, rows: dict):
         q_emb = rows["q_emb"]
-        _, I = self.index.search(q_emb, self.k)
+        all_I = []
+
+        for i in range(0, len(q_emb), self.batch_size):
+            batch_emb = q_emb[i: i + self.batch_size]
+            _, I = self.index.search(batch_emb, self.k)
+            all_I.append(I)
+
+        I = np.vstack(all_I)  # concat all retrieved indices
+
         retrieved_docs = [[self.docs[i] for i in neighbors] for neighbors in I]
 
         return {
@@ -70,7 +82,6 @@ def load_triviaqa_prompts(path, num_prompts):
     with open(path) as f:
         data = json.load(f)
     all_data = data["Data"]
-    logging.info(f"Loaded {len(all_data)} prompts from {path}")
     random.shuffle(all_data)
     return [item["Question"] for item in all_data[:num_prompts]]
 
@@ -80,9 +91,7 @@ def run_ray_data_rag(requests, model, retrieve_batch_size, docs_path, index_path
 
     ds = ds.map_batches(
         ContrieverEncoder,
-        fn_constructor_args=[
-            64,
-        ],
+        fn_constructor_args=[64],
         batch_size=retrieve_batch_size,
         concurrency=2,
         num_cpus=32,
@@ -90,12 +99,7 @@ def run_ray_data_rag(requests, model, retrieve_batch_size, docs_path, index_path
 
     ds = ds.map_batches(
         Retriever,
-        fn_constructor_args=[
-            docs_path,
-            index_path,
-            topk,
-            nprobe,
-        ],
+        fn_constructor_args=[docs_path, index_path, topk, nprobe, 64],
         batch_size=retrieve_batch_size,
         concurrency=2,
         num_cpus=32,
@@ -110,13 +114,7 @@ def run_ray_data_rag(requests, model, retrieve_batch_size, docs_path, index_path
             batch_size=64,
             max_pending_requests=10000,
             max_concurrent_batches=8,
-            engine_kwargs={
-                "enable_chunked_prefill": True,
-                # "max_num_seqs": 1024
-                # "tensor_parallel_size": 2
-                # "max_num_batched_tokens": 4096,
-                # "max_model_len": 16384,
-            },
+            engine_kwargs={"enable_chunked_prefill": True},
         ),
         preprocess=lambda row: dict(
             messages=[
@@ -124,11 +122,7 @@ def run_ray_data_rag(requests, model, retrieve_batch_size, docs_path, index_path
                 {"role": "user", "content": row["prompt"]},
             ],
             sampling_params=dict(
-                n=1,
-                temperature=1.0,
-                top_p=1.0,
-                ignore_eos=True,
-                max_tokens=64,
+                n=1, temperature=1.0, top_p=1.0, ignore_eos=True, max_tokens=64,
             ),
         ),
         postprocess=lambda row: dict(answer=row["generated_text"], **row),
@@ -136,21 +130,63 @@ def run_ray_data_rag(requests, model, retrieve_batch_size, docs_path, index_path
 
     ds = processor(ds)
 
-    
     throughput_dict = defaultdict(int)
-
     start = time.perf_counter()
     for row in tqdm(ds.iter_rows(), total=ds.count()):
-        now = time.perf_counter()
-        elapsed_time = int(now - start)
+        elapsed_time = int(time.perf_counter() - start)
         throughput_dict[elapsed_time] += 1
     end = time.perf_counter()
-    with open(f"{output_dir}/throughput.json", "w") as f:
+
+    with open(f"{output_dir}/ray_data_throughput.json", "w") as f:
         json.dump(throughput_dict, f)
-        
-    ray.timeline(
-        f"{output_dir}/timeline.json"
-    )
+    ray.timeline(f"{output_dir}/timeline.json")
+    return end - start
+
+
+async def run_staged_batch_baseline_async(requests, model, docs_path, index_path, topk, nprobe, output_dir):
+    logging.info("Encoding queries...")
+    encoder = ContrieverEncoder(batch_size=64)
+    all_encoded = encoder({"query": np.array(requests)})
+    q_emb = all_encoded["q_emb"]
+
+    logging.info("Retrieving documents...")
+    retriever = Retriever(docs_path, index_path, topk, nprobe)
+    retrieved = retriever({"query": np.array(requests), "q_emb": q_emb})
+
+    prompts = []
+    for query, docs in zip(retrieved["query"], retrieved["retrieved_docs"]):
+        context = "\n".join(docs)
+        prompts.append(f"Context:\n{context}\n\nQuestion: {query}\nAnswer:")
+
+    logging.info("Generating answers with AsyncLLMEngine...")
+    engine = AsyncLLMEngine(model)
+    throughput_dict = defaultdict(int)
+    start = time.perf_counter()
+
+    async def generate_single(prompt):
+        sampling_param = SamplingParams(
+            n=1, temperature=1.0, top_p=1.0, ignore_eos=True, max_tokens=64,
+        )
+        stream = await engine.add_request(
+            request_id=str(uuid.uuid4()),
+            prompt=inputs.TextPrompt(prompt=prompt),
+            params=sampling_param,
+        )
+        async for output in stream:
+            if output.finished:
+                elapsed = int(time.perf_counter() - start)
+                throughput_dict[elapsed] += 1
+                return output.output_text
+        raise RuntimeError("Request did not finish.")
+
+    tasks = [asyncio.create_task(generate_single(p)) for p in prompts]
+    for fut in asyncio.as_completed(tasks):
+        await fut
+
+    end = time.perf_counter()
+
+    with open(f"{output_dir}/staged_batch_throughput.json", "w") as f:
+        json.dump(throughput_dict, f)
     return end - start
 
 
@@ -164,51 +200,53 @@ if __name__ == "__main__":
     parser.add_argument("--retrieve-batch-size", type=int, default=256)
     parser.add_argument("--topk", type=int, default=5)
     parser.add_argument("--output-dir", type=str, default="/home/yilegu/ray/logs")
+    parser.add_argument("--mode", type=str, choices=["ray_data", "staged_batch"], default="ray_data")
     args = parser.parse_args()
-    
-    # prepare output directory
-    # add a time prefix with good format
+
     time_prefix = time.strftime("%Y-%m-%d_%H-%M-%S", time.localtime())
     output_dir = f"{args.output_dir}/{time_prefix}"
     os.makedirs(output_dir, exist_ok=True)
 
-    # set up logging
     logging.basicConfig(
         filename=f"{output_dir}/log.log",
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(message)s",
     )
-    
+
     ray.init()
 
     logging.info("Loading KB...")
     docs_path = f"{args.kb_prefix}_kb.json"
     index_path = f"{args.kb_prefix}_kb.index"
-    # with open(f"{args.kb_prefix}_kb.json") as f:
-    #     kb = json.load(f)
-    # docs = [item["content"] for item in kb]
-
-    # index = faiss.read_index(f"{args.kb_prefix}_kb.index")
-    # index.nprobe = args.nprobe
 
     logging.info("Loading Queries...")
     requests = load_triviaqa_prompts(args.dataset, args.num_prompts)
 
-    # logging.info("Creating Contriever Encoder and Retriever...")
-    # encoder = ContrieverEncoder(batch_size=64)
-    # retriever = Retriever(docs, index, topk=args.topk)
-
-    logging.info("Running RAG Benchmark: Retrieval on CPU, Generation on GPU...")
-    elapsed_time = run_ray_data_rag(
-        requests,
-        args.model,
-        args.retrieve_batch_size,
-        docs_path,
-        index_path,
-        args.topk,
-        args.nprobe,
-        output_dir,
-    )
+    if args.mode == "ray_data":
+        logging.info("Running RAG Benchmark: Ray Data mode...")
+        elapsed_time = run_ray_data_rag(
+            requests,
+            args.model,
+            args.retrieve_batch_size,
+            docs_path,
+            index_path,
+            args.topk,
+            args.nprobe,
+            output_dir,
+        )
+    elif args.mode == "staged_batch":
+        logging.info("Running RAG Benchmark: staged_batch async mode...")
+        elapsed_time = asyncio.run(run_staged_batch_baseline_async(
+            requests,
+            args.model,
+            docs_path,
+            index_path,
+            args.topk,
+            args.nprobe,
+            output_dir,
+        ))
+    else:
+        raise ValueError(f"Unsupported mode: {args.mode}")
 
     logging.info(f"Elapsed Time: {elapsed_time:.2f} s")
     logging.info(f"Throughput: {len(requests) / elapsed_time:.2f} queries/s")
