@@ -21,7 +21,7 @@ from typing import List
 from transformers import AutoTokenizer, AutoModel
 from ray.data.llm import vLLMEngineProcessorConfig, build_llm_processor
 from vllm import AsyncLLMEngine, SamplingParams, inputs
-
+from vllm.engine.arg_utils import AsyncEngineArgs, EngineArgs
 
 class ContrieverEncoder:
     def __init__(self, batch_size=64):
@@ -87,6 +87,8 @@ def load_triviaqa_prompts(path, num_prompts):
 
 
 def run_ray_data_rag(requests, model, retrieve_batch_size, docs_path, index_path, topk, nprobe, output_dir, mode):
+    ray.init()
+    
     if mode == "ray_data_static":
         configuration = {
             "ContrieverEncoder": {
@@ -161,7 +163,9 @@ def run_ray_data_rag(requests, model, retrieve_batch_size, docs_path, index_path
 
     throughput_dict = defaultdict(int)
     start = time.perf_counter()
-    for row in tqdm(ds.iter_rows(), total=ds.count()):
+    # ds = ds.materialize()
+    total = len(requests)
+    for row in tqdm(ds.iter_rows(), total=total):
         elapsed_time = int(time.perf_counter() - start)
         throughput_dict[elapsed_time] += 1
     end = time.perf_counter()
@@ -172,14 +176,17 @@ def run_ray_data_rag(requests, model, retrieve_batch_size, docs_path, index_path
     return end - start
 
 
-async def run_staged_batch_baseline_async(requests, model, docs_path, index_path, topk, nprobe, output_dir):
+async def run_staged_batch_baseline_async(requests, model, docs_path, index_path, topk, nprobe, output_dir, engine_args):
+    start = time.perf_counter()
+    
+    
     logging.info("Encoding queries...")
     encoder = ContrieverEncoder(batch_size=64)
     all_encoded = encoder({"query": np.array(requests)})
     q_emb = all_encoded["q_emb"]
 
     logging.info("Retrieving documents...")
-    retriever = Retriever(docs_path, index_path, topk, nprobe)
+    retriever = Retriever(docs_path, index_path, topk, nprobe, 64)
     retrieved = retriever({"query": np.array(requests), "q_emb": q_emb})
 
     prompts = []
@@ -188,9 +195,8 @@ async def run_staged_batch_baseline_async(requests, model, docs_path, index_path
         prompts.append(f"Context:\n{context}\n\nQuestion: {query}\nAnswer:")
 
     logging.info("Generating answers with AsyncLLMEngine...")
-    engine = AsyncLLMEngine(model)
+    engine = AsyncLLMEngine.from_engine_args(engine_args)
     throughput_dict = defaultdict(int)
-    start = time.perf_counter()
 
     async def generate_single(prompt):
         sampling_param = SamplingParams(
@@ -205,7 +211,7 @@ async def run_staged_batch_baseline_async(requests, model, docs_path, index_path
             if output.finished:
                 elapsed = int(time.perf_counter() - start)
                 throughput_dict[elapsed] += 1
-                return output.output_text
+                return output
         raise RuntimeError("Request did not finish.")
 
     tasks = [asyncio.create_task(generate_single(p)) for p in prompts]
@@ -222,7 +228,7 @@ async def run_staged_batch_baseline_async(requests, model, docs_path, index_path
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", type=str, required=True)
-    parser.add_argument("--model", type=str, required=True)
+    # parser.add_argument("--model", type=str, required=True)
     parser.add_argument("--kb-prefix", type=str, required=True)
     parser.add_argument("--num-prompts", type=int, default=1000)
     parser.add_argument("--nprobe", type=int, default=512)
@@ -230,10 +236,11 @@ if __name__ == "__main__":
     parser.add_argument("--topk", type=int, default=5)
     parser.add_argument("--output-dir", type=str, default="/home/yilegu/ray/logs")
     parser.add_argument("--mode", type=str, choices=["ray_data_static", "ray_data_dynamic", "staged_batch"], default="ray_data_dynamic")
+    parser = AsyncEngineArgs.add_cli_args(parser)
     args = parser.parse_args()
 
     time_prefix = time.strftime("%Y-%m-%d_%H-%M-%S", time.localtime())
-    output_dir = f"{args.output_dir}/{time_prefix}"
+    output_dir = f"{args.output_dir}/{time_prefix}-{args.mode}"
     os.makedirs(output_dir, exist_ok=True)
 
     logging.basicConfig(
@@ -241,8 +248,6 @@ if __name__ == "__main__":
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(message)s",
     )
-
-    ray.init()
 
     logging.info("Loading KB...")
     docs_path = f"{args.kb_prefix}_kb.json"
@@ -266,6 +271,7 @@ if __name__ == "__main__":
         )
     elif args.mode == "staged_batch":
         logging.info("Running RAG Benchmark: staged_batch async mode...")
+        engine_args = AsyncEngineArgs.from_cli_args(args)
         elapsed_time = asyncio.run(run_staged_batch_baseline_async(
             requests,
             args.model,
@@ -274,6 +280,7 @@ if __name__ == "__main__":
             args.topk,
             args.nprobe,
             output_dir,
+            engine_args
         ))
     else:
         raise ValueError(f"Unsupported mode: {args.mode}")
