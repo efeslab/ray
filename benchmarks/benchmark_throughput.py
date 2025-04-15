@@ -168,7 +168,7 @@ def run_vllm(
 ) -> float:
     from vllm import LLM, SamplingParams
     start = time.perf_counter()
-    print(f"run_vllm timer started: {start}")
+    print(f"[vLLM][run_vllm] timer started: {start}")
     
     llm = LLM(**dataclasses.asdict(engine_args))
 
@@ -204,7 +204,7 @@ def run_vllm(
         use_tqdm=False,
     )
     end_generate = time.perf_counter()
-    print(f"[VLLM] llm.generate Time taken: {end_generate - start_generate:.2f} seconds")
+    print(f"[vLLM][run_vllm] llm.generate Time taken: {end_generate - start_generate:.2f} seconds")
     return end_generate - start
 
 
@@ -217,7 +217,7 @@ async def run_vllm_async(
     from vllm import SamplingParams
     
     start = time.perf_counter()
-    print(f"run_vllm_async timer started: {start}")
+    print(f"[vLLM][run_vllm_async] timer started: {start}")
 
     async with build_async_engine_client_from_engine_args(
         engine_args,
@@ -257,7 +257,7 @@ async def run_vllm_async(
             pass
         end = time.perf_counter()
 
-        print(f"[VLLM] llm.generate async Time taken: {end - start_generate:.2f} seconds")
+        print(f"[vLLM][run_vllm_async] llm.generate async Time taken: {end - start_generate:.2f} seconds")
         return end - start
 
 async def run_vllm_async_ray_style(
@@ -272,7 +272,7 @@ async def run_vllm_async_ray_style(
     import uuid
     
     start = time.perf_counter()
-    print(f"run_vllm_async_ray_style timer started: {start}")
+    print(f"[vLLM][run_vllm_async_ray_style] timer started: {start}")
 
     engine = AsyncLLMEngine.from_engine_args(engine_args)
 
@@ -303,8 +303,6 @@ async def run_vllm_async_ray_style(
         async for output in stream:
             if output.finished:
                 output.prompt = request.prompt  # Restore original prompt
-                print(f"[VLLM] {output.request_id} finished")
-                print(f"[VLLM] {output.request_id} output: {output.outputs[0].text}")
                 return output
         raise RuntimeError("Request did not finish.")
 
@@ -317,7 +315,7 @@ async def run_vllm_async_ray_style(
         output = await fut  # In real benchmark, maybe store/analyze output
 
     end = time.perf_counter()
-    print(f"[VLLM] llm.generate async ray style Time taken: {end - start_generate:.2f} seconds")
+    print(f"[vLLM][run_vllm_async_ray_style] llm.generate async ray style Time taken: {end - start_generate:.2f} seconds")
     return end - start
 
 def run_hf(
@@ -429,10 +427,10 @@ def run_ray_data(
 
     # Suppose `requests` is a list of SampleRequest objects
     # We map each request to a dict for Ray Dataset
-    print(os.environ.get("RAY_PROFILING"))
-    print(os.environ.get("RAY_task_events_report_interval_ms"))
+    # print(os.environ.get("RAY_PROFILING"))
+    # print(os.environ.get("RAY_task_events_report_interval_ms"))
 
-    # ray.init(address="auto")
+    ray.init(address="auto")
     
     requests_data = []
     for r in requests:
@@ -489,127 +487,7 @@ def run_ray_data(
     _ = ds.take_all()        # force materialization of all results
     end = time.perf_counter()
 
-    ray.timeline("ray_timeline.json")  # Optional: save the timeline for analysis
-    return end - start
-
-def run_ray_data2(
-    requests: List[SampleRequest],
-    model: str,
-    concurrency: int,
-    batch_size: int,
-) -> float:
-    """Use Ray Dataset + LLMProcessor (vLLMEngineProcessorConfig) to run inference."""
-
-    import ray
-    from ray.data.llm import vLLMEngineProcessorConfig, build_llm_processor
-
-    # Convert the list of prompts into Ray Dataset rows
-    # Each row must be a dict to feed into the processor's preprocess function
-    # For example, row["item"] is the user prompt
-    # prompts = [r.prompt for r in requests]
-    # ds = ray.data.from_items(prompts).map(lambda prompt: {"item": prompt})
-    
-
-    # Suppose `requests` is a list of SampleRequest objects
-    # We map each request to a dict for Ray Dataset
-    requests_data = []
-    for r in requests:
-        requests_data.append({
-            "prompt": r.prompt,
-            "expected_output_len": r.expected_output_len,
-            "multi_modal_data": r.multi_modal_data,  # optional
-        })
-
-    ds = ray.data.from_items(requests_data)
-
-    @ray.remote(num_gpus=1)
-    class VLLMActor:
-        def __init__(self, model: str, engine_args: dict):
-            from vllm import LLM
-            self.llm = LLM(**dataclasses.asdict(engine_args))
-
-        def generate(self, batch: List[dict]):
-            from vllm import SamplingParams
-            # for row in batch:
-            #     print(row)
-            # batch = batch.to_dict(orient="records")
-            # print(batch)
-            # print(len(batch["prompt"]))
-            prompts = batch["prompt"]
-            sampling_params = [SamplingParams(n=1, temperature=1.0, top_p=1.0,
-                                            ignore_eos=True, max_tokens=expected_output_len) for expected_output_len in batch["expected_output_len"]]
-            start_time = time.perf_counter()
-            outputs = self.llm.generate(prompts, sampling_params, use_tqdm=False)
-            end_time = time.perf_counter()
-            print(f"[RayData] llm.generate Time taken: {end_time - start_time:.2f} seconds")
-            # Convert to Ray-friendly dicts
-            result = []
-            for output in outputs:
-                # output.outputs[0].text is the generated string
-                result.append({"generated_text": output.outputs[0].text})
-
-            return {"generated_text": result}
-
-
-    # Usage:
-    actor = VLLMActor.options(num_gpus=1).remote(model, EngineArgs.from_cli_args(args))
-
-    ds = ray.data.from_items(requests_data)
-    ds = ds.map_batches(lambda batch: ray.get(actor.generate.remote(batch)),
-                        batch_size=10000, zero_copy_batch=True)
-
-    start = time.perf_counter()
-    print("Start Running inference...")
-    _ = ds.take_all()
-    end = time.perf_counter()
-    return end - start
-
-def run_ray_data_optimized(
-    requests: List[SampleRequest],
-    model: str,
-    concurrency: int,
-    batch_size: int,
-) -> float:
-    import ray
-    import pandas as pd
-    from ray.data import from_items
-
-    @ray.remote(num_gpus=1)
-    class VLLMActor:
-        def __init__(self, model: str, engine_args: dict):
-            from vllm import LLM, SamplingParams
-            self.llm = LLM(**dataclasses.asdict(engine_args))
-            self.SamplingParams = SamplingParams
-
-        def generate(self, batch: pd.DataFrame):
-            prompts = batch["prompt"].tolist()
-            output_lens = batch["expected_output_len"].tolist()
-            sampling_params = [self.SamplingParams(
-                n=1, temperature=1.0, top_p=1.0, ignore_eos=True, max_tokens=l
-            ) for l in output_lens]
-            outputs = self.llm.generate(prompts, sampling_params, use_tqdm=False)
-            texts = [o.outputs[0].text for o in outputs]
-            return pd.DataFrame({"generated_text": texts})
-
-    actor = VLLMActor.options(num_gpus=1).remote(model, EngineArgs.from_cli_args(args))
-
-    # Prepare data
-    requests_data = [{"prompt": r.prompt, "expected_output_len": r.expected_output_len} for r in requests]
-    ds = from_items(requests_data)
-
-    # Optimized pipeline
-    ds = ds.map_batches(
-        lambda batch: ray.get(actor.generate.remote(batch)),
-        batch_size=batch_size,
-        zero_copy_batch=True,
-        batch_format="pandas",
-    )
-
-    start = time.perf_counter()
-    _ = ds.materialize()  # Triggers execution but avoid full `take_all()` blocking fetch
-    ray.data.context.DataContext.get_current().execution_options.preserve_order = False  # Optional: Skip preserving input order
-    end = time.perf_counter()
-
+    # ray.timeline("ray_timeline.json")  # Optional: save the timeline for analysis
     return end - start
 
 # -----------------------------------------------------------------------------
@@ -676,6 +554,8 @@ def main(args: argparse.Namespace):
             print(
                 "Running vLLM async engine (OpenAI-like) with multiprocessing frontend."
             )
+            
+            # we run the ray style async engine instead of the default one here
             elapsed_time = uvloop.run(
                 run_vllm_async_ray_style(
                     requests,
@@ -768,8 +648,8 @@ def main(args: argparse.Namespace):
         with open(args.output_json, "w") as f:
             json.dump(results, f, indent=4)
     else:
-        # Example auto-filename
-        base_dir = "/home/yilegu/ray"
+        # Example auto-filename, in current directory:
+        base_dir = os.path.dirname(os.path.abspath(__file__))
         timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
         if "/" in args.model:
             model_name = args.model.split("/")[-1]
