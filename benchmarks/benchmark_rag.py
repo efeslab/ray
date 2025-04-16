@@ -23,6 +23,27 @@ from ray.data.llm import vLLMEngineProcessorConfig, build_llm_processor
 from vllm import AsyncLLMEngine, SamplingParams, inputs
 from vllm.engine.arg_utils import AsyncEngineArgs, EngineArgs
 
+class E5Encoder:
+    def __init__(self, batch_size=64):
+        self.tokenizer = AutoTokenizer.from_pretrained("intfloat/e5-large-v2")
+        self.model = AutoModel.from_pretrained("intfloat/e5-large-v2").to("cpu")
+        self.model.eval()
+        self.batch_size = batch_size
+
+    def __call__(self, rows: dict):
+        queries = rows["query"].tolist()
+        embs = []
+        texts = ["passage: " + t for t in queries]
+        for i in tqdm(range(0, len(texts), self.batch_size)):
+            batch = texts[i:i+self.batch_size]
+            tokens = self.tokenizer(batch, padding=True, truncation=True, return_tensors="pt")
+            with torch.no_grad():
+                output = self.model(**tokens).last_hidden_state  # shape: (B, L, H)
+                emb = output.mean(dim=1)  # mean pooling
+            embs.append(emb.cpu())
+        rows["q_emb"] = torch.cat(embs, dim=0).numpy().astype("float32")
+        return rows
+
 class ContrieverEncoder:
     def __init__(self, batch_size=64):
         self.tokenizer = AutoTokenizer.from_pretrained("facebook/contriever")
@@ -121,7 +142,8 @@ def run_ray_data_rag(requests, model, retrieve_batch_size, docs_path, index_path
     ds = ray.data.from_items([{"query": q} for q in requests])
 
     ds = ds.map_batches(
-        ContrieverEncoder,
+        # ContrieverEncoder,
+        E5Encoder,
         fn_constructor_args=[64],
         batch_size=configuration["ContrieverEncoder"]["batch_size"],
         concurrency=configuration["ContrieverEncoder"]["concurrency"],
@@ -181,7 +203,8 @@ async def run_staged_batch_baseline_async(requests, model, docs_path, index_path
     
     
     logging.info("Encoding queries...")
-    encoder = ContrieverEncoder(batch_size=64)
+    # encoder = ContrieverEncoder(batch_size=64)
+    encoder = E5Encoder(batch_size=64)
     all_encoded = encoder({"query": np.array(requests)})
     q_emb = all_encoded["q_emb"]
 
