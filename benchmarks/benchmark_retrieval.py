@@ -27,9 +27,23 @@ def encode_contriever(queries, tokenizer, model, device, batch_size=64):
         embs.append(emb.cpu())
     return torch.cat(embs, dim=0).numpy().astype("float32")
 
+def encode_e5(texts, tokenizer, model, device, batch_size=64):
+    embs = []
+    # Add "passage: " prefix for better performance
+    texts = ["passage: " + t for t in texts]
+    for i in tqdm(range(0, len(texts), batch_size)):
+        batch = texts[i:i+batch_size]
+        tokens = tokenizer(batch, padding=True, truncation=True, return_tensors="pt").to(device)
+        with torch.no_grad():
+            output = model(**tokens).last_hidden_state  # shape: (B, L, H)
+            emb = output.mean(dim=1)  # mean pooling
+        embs.append(emb.cpu())
+    return torch.cat(embs, dim=0).numpy().astype("float32")
+
 
 def retrieve_batch(queries, index, tokenizer, model, device, k):
-    q_emb = encode_contriever(queries, tokenizer, model, device)
+    # q_emb = encode_contriever(queries, tokenizer, model, device)
+    q_emb = encode_e5(queries, tokenizer, model, device)
     _, I = index.search(q_emb, k)
     return I
 
@@ -55,7 +69,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", type=str, required=True)
     parser.add_argument("--kb-prefix", type=str, required=True)
-    parser.add_argument("--num-prompts", type=int, default=5000)
+    parser.add_argument("--num-prompts", type=int, default=10000)
     parser.add_argument("--retrieve-batch-size", type=int, default=64)
     parser.add_argument("--topk", type=int, default=5)
     parser.add_argument("--nprobe", type=int, default=64)
@@ -67,9 +81,15 @@ if __name__ == "__main__":
     index = faiss.read_index(f"{args.kb_prefix}_kb.index")
     index.nprobe = args.nprobe
 
-    print("Loading Contriever model (CPU only)...")
-    tokenizer = AutoTokenizer.from_pretrained("facebook/contriever")
-    model = AutoModel.from_pretrained("facebook/contriever").to("cpu")
+    # print("Loading Contriever model (CPU only)...")
+    # tokenizer = AutoTokenizer.from_pretrained("facebook/contriever")
+    # model = AutoModel.from_pretrained("facebook/contriever").to("cpu")
+    # model.eval()
+    # device = "cpu"
+    
+    print("Loading E5 model (CPU only)...")
+    tokenizer = AutoTokenizer.from_pretrained("intfloat/e5-large-v2")
+    model = AutoModel.from_pretrained("intfloat/e5-large-v2").to("cpu")
     model.eval()
     device = "cpu"
 

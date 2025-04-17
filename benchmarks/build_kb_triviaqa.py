@@ -40,26 +40,48 @@ def encode_contriever(texts, tokenizer, model, device, batch_size=64):
         embs.append(emb.cpu())
     return torch.cat(embs, dim=0).numpy().astype("float32")
 
+def encode_e5(texts, tokenizer, model, device, batch_size=64):
+    embs = []
+    # Add "passage: " prefix for better performance
+    texts = ["passage: " + t for t in texts]
+    for i in tqdm(range(0, len(texts), batch_size)):
+        batch = texts[i:i+batch_size]
+        tokens = tokenizer(batch, padding=True, truncation=True, return_tensors="pt").to(device)
+        with torch.no_grad():
+            output = model(**tokens).last_hidden_state  # shape: (B, L, H)
+            emb = output.mean(dim=1)  # mean pooling
+        embs.append(emb.cpu())
+    return torch.cat(embs, dim=0).numpy().astype("float32")
+
 
 def build_and_save_kb_ivf(dataset_path, output_prefix, num_prompts, nlist=100):
     kb = load_triviaqa_build_kb(dataset_path, num_prompts)
     print(f"Building FAISS IVF Index over {len(kb)} docs...")
 
     docs = [item["content"] for item in kb]
-
-    tokenizer = AutoTokenizer.from_pretrained("facebook/contriever")
-    model = AutoModel.from_pretrained("facebook/contriever").to("cuda")
+    
+    tokenizer = AutoTokenizer.from_pretrained("intfloat/e5-large-v2")
+    model = AutoModel.from_pretrained("intfloat/e5-large-v2").to("cuda")
     model.eval()
 
-    embs = encode_contriever(docs, tokenizer, model, device="cuda")
+    embs = encode_e5(docs, tokenizer, model, device="cuda")
     dim = embs.shape[1]
     print(f"Embedding dimension: {dim}")
+
+    # tokenizer = AutoTokenizer.from_pretrained("facebook/contriever")
+    # model = AutoModel.from_pretrained("facebook/contriever").to("cuda")
+    # model.eval()
+
+    # embs = encode_contriever(docs, tokenizer, model, device="cuda")
+    # dim = embs.shape[1]
+    # print(f"Embedding dimension: {dim}")
 
     quantizer = faiss.IndexFlatL2(dim)
     index = faiss.IndexIVFFlat(quantizer, dim, nlist, faiss.METRIC_L2)
 
-    res = faiss.StandardGpuResources()
-    index = faiss.index_cpu_to_gpu(res, 0, index)
+    # res = faiss.StandardGpuResources()
+    # index = faiss.index_cpu_to_gpu(res, 0, index)
+    index = faiss.index_cpu_to_all_gpus(index)
 
     print("Training IVF quantizer...")
     index.train(embs)
