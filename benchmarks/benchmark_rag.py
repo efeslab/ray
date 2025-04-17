@@ -103,31 +103,51 @@ def load_triviaqa_prompts(path, num_prompts):
     with open(path) as f:
         data = json.load(f)
     all_data = data["Data"]
+    # if all data is smaller than num_prompts, copy until we reach num_prompts
+    if len(all_data) < num_prompts:
+        all_data = all_data * (num_prompts // len(all_data)) + all_data[:num_prompts % len(all_data)]
+        
     random.shuffle(all_data)
     return [item["Question"] for item in all_data[:num_prompts]]
 
 
-def run_ray_data_rag(requests, model, retrieve_batch_size, docs_path, index_path, topk, nprobe, output_dir, mode):
+def run_ray_data_rag(requests, model, data_parallel_size, retrieve_batch_size, docs_path, index_path, topk, nprobe, output_dir, mode):
     ray.init()
     
     if mode == "ray_data_static":
-        configuration = {
-            "ContrieverEncoder": {
-                "batch_size": retrieve_batch_size,
-                "concurrency": 2,
-                "num_cpus": 16,
-            },
-            "Retriever": {
-                "batch_size": retrieve_batch_size,
-                "concurrency": 2,
-                "num_cpus": 16,
-            },
-        }
+        if data_parallel_size > 6:
+            configuration = {
+                "ContrieverEncoder": {
+                    "batch_size": retrieve_batch_size,
+                    # "concurrency": 2 * data_parallel_size,
+                    "concurrency": 2 * 6,
+                    "num_cpus": 16 
+                },
+                "Retriever": {
+                    "batch_size": retrieve_batch_size,
+                    # "concurrency": 1 * data_parallel_size,
+                    "concurrency": 1 * 6,
+                    "num_cpus": 8
+                },
+            }
+        else:
+            configuration = {
+                "ContrieverEncoder": {
+                    "batch_size": retrieve_batch_size,
+                    "concurrency": 2 * data_parallel_size,
+                    "num_cpus": 16 
+                },
+                "Retriever": {
+                    "batch_size": retrieve_batch_size,
+                    "concurrency": 1 * data_parallel_size,
+                    "num_cpus": 8
+                },
+            }     
     elif mode == "ray_data_dynamic":
         configuration = {
             "ContrieverEncoder": {
                 "batch_size": retrieve_batch_size,
-                "concurrency": (1, 4),
+                "concurrency": (2, 8),
                 "num_cpus": 16,
             },
             "Retriever": {
@@ -142,8 +162,8 @@ def run_ray_data_rag(requests, model, retrieve_batch_size, docs_path, index_path
     ds = ray.data.from_items([{"query": q} for q in requests])
 
     ds = ds.map_batches(
-        # ContrieverEncoder,
-        E5Encoder,
+        ContrieverEncoder,
+        # E5Encoder,
         fn_constructor_args=[64],
         batch_size=configuration["ContrieverEncoder"]["batch_size"],
         concurrency=configuration["ContrieverEncoder"]["concurrency"],
@@ -163,11 +183,16 @@ def run_ray_data_rag(requests, model, retrieve_batch_size, docs_path, index_path
     processor = build_llm_processor(
         vLLMEngineProcessorConfig(
             model_source=model,
-            concurrency=1,
-            batch_size=64,
+            concurrency=data_parallel_size,
+            batch_size=256,
             max_pending_requests=10000,
-            max_concurrent_batches=8,
-            engine_kwargs={"enable_chunked_prefill": True},
+            # max_concurrent_batches=8,
+            max_concurrent_batches=1,
+            engine_kwargs={
+                "enable_chunked_prefill": True,
+                "max_num_seqs": 1024,
+                "enforce_eager": True,
+            }
         ),
         preprocess=lambda row: dict(
             messages=[
@@ -175,7 +200,7 @@ def run_ray_data_rag(requests, model, retrieve_batch_size, docs_path, index_path
                 {"role": "user", "content": row["prompt"]},
             ],
             sampling_params=dict(
-                n=1, temperature=1.0, top_p=1.0, ignore_eos=True, max_tokens=64,
+                n=1, temperature=1.0, top_p=1.0, ignore_eos=True, max_tokens=256,
             ),
         ),
         postprocess=lambda row: dict(answer=row["generated_text"], **row),
@@ -198,17 +223,25 @@ def run_ray_data_rag(requests, model, retrieve_batch_size, docs_path, index_path
     return end - start
 
 
-async def run_staged_batch_baseline_async(requests, model, docs_path, index_path, topk, nprobe, output_dir, engine_args):
+async def run_staged_batch_baseline_async(requests, model, data_parallel_size, docs_path, index_path, topk, nprobe, output_dir, engine_args):
+    # TODO: need to aligh with Ray Data!!!
+    
+    # restrict_cpu_threads(40 * data_parallel_size)
+    
     start = time.perf_counter()
     
     
     logging.info("Encoding queries...")
-    # encoder = ContrieverEncoder(batch_size=64)
-    encoder = E5Encoder(batch_size=64)
+    start_encoding = time.perf_counter()
+    encoder = ContrieverEncoder(batch_size=64)
+    # encoder = E5Encoder(batch_size=64)
     all_encoded = encoder({"query": np.array(requests)})
     q_emb = all_encoded["q_emb"]
+    end_encoding = time.perf_counter()
+    logging.info(f"Encoding time: {end_encoding - start_encoding:.2f} s")
 
     logging.info("Retrieving documents...")
+    start_retrieving = time.perf_counter()
     retriever = Retriever(docs_path, index_path, topk, nprobe, 64)
     retrieved = retriever({"query": np.array(requests), "q_emb": q_emb})
 
@@ -217,13 +250,24 @@ async def run_staged_batch_baseline_async(requests, model, docs_path, index_path
         context = "\n".join(docs)
         prompts.append(f"Context:\n{context}\n\nQuestion: {query}\nAnswer:")
 
+    end_retrieving = time.perf_counter()
+    logging.info(f"Retrieving time: {end_retrieving - start_retrieving:.2f} s")
+    
+    
     logging.info("Generating answers with AsyncLLMEngine...")
+    start_generation = time.perf_counter()
+    #                 "enable_chunked_prefill": True,
+                #"max_num_seqs": 1024,
+                #"enforce_eager": True,
+    engine_args.max_num_seqs = 1024
+    engine_args.enable_chunked_prefill = True
+    engine_args.enforce_eager = True
     engine = AsyncLLMEngine.from_engine_args(engine_args)
     throughput_dict = defaultdict(int)
 
     async def generate_single(prompt):
         sampling_param = SamplingParams(
-            n=1, temperature=1.0, top_p=1.0, ignore_eos=True, max_tokens=64,
+            n=1, temperature=1.0, top_p=1.0, ignore_eos=True, max_tokens=256,
         )
         stream = await engine.add_request(
             request_id=str(uuid.uuid4()),
@@ -237,11 +281,18 @@ async def run_staged_batch_baseline_async(requests, model, docs_path, index_path
                 return output
         raise RuntimeError("Request did not finish.")
 
-    tasks = [asyncio.create_task(generate_single(p)) for p in prompts]
-    for fut in asyncio.as_completed(tasks):
-        await fut
+    # send prompts in batch of 25,000
+    for start_idx in range(0, len(prompts), 25000):
+        end_idx = min(start_idx + 25000, len(prompts))
+        logging.info(f"Sending prompts {start_idx} to {end_idx}...")
+        tasks = [asyncio.create_task(generate_single(p)) for p in prompts[start_idx:end_idx]]
+        for fut in asyncio.as_completed(tasks):
+            await fut
+        logging.info(f"Finished sending prompts {start_idx} to {end_idx}...")
 
     end = time.perf_counter()
+    
+    logging.info(f"Generation time: {end - start_generation:.2f} s")
 
     with open(f"{output_dir}/staged_batch_throughput.json", "w") as f:
         json.dump(throughput_dict, f)
@@ -258,12 +309,13 @@ if __name__ == "__main__":
     parser.add_argument("--retrieve-batch-size", type=int, default=256)
     parser.add_argument("--topk", type=int, default=5)
     parser.add_argument("--output-dir", type=str, default="/home/yilegu/ray/logs")
+    parser.add_argument("--data-parallel-size", type=int, default=1)
     parser.add_argument("--mode", type=str, choices=["ray_data_static", "ray_data_dynamic", "staged_batch"], default="ray_data_dynamic")
     parser = AsyncEngineArgs.add_cli_args(parser)
     args = parser.parse_args()
 
     time_prefix = time.strftime("%Y-%m-%d_%H-%M-%S", time.localtime())
-    output_dir = f"{args.output_dir}/{time_prefix}-{args.mode}"
+    output_dir = f"{args.output_dir}/{time_prefix}-{args.mode}-dp{args.data_parallel_size}-nprobe{args.nprobe}-{args.num_prompts}"
     os.makedirs(output_dir, exist_ok=True)
 
     logging.basicConfig(
@@ -284,6 +336,7 @@ if __name__ == "__main__":
         elapsed_time = run_ray_data_rag(
             requests,
             args.model,
+            args.data_parallel_size,
             args.retrieve_batch_size,
             docs_path,
             index_path,
@@ -298,6 +351,7 @@ if __name__ == "__main__":
         elapsed_time = asyncio.run(run_staged_batch_baseline_async(
             requests,
             args.model,
+            args.data_parallel_size,
             docs_path,
             index_path,
             args.topk,
