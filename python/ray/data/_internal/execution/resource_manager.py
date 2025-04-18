@@ -80,6 +80,10 @@ class ResourceManager:
         self._downstream_object_store_memory: Dict[PhysicalOperator, float] = {}
 
         self._op_resource_allocator: Optional["OpResourceAllocator"] = None
+        
+        
+        self._mem_usage = 0
+        self._cpu_usage = 0
 
         if data_context.op_resource_reservation_enabled:
             # We'll enable memory reservation if all operators have
@@ -101,6 +105,7 @@ class ResourceManager:
                 else self.DEFAULT_OBJECT_STORE_MEMORY_LIMIT_FRACTION_NO_RESERVATION
             )
         )
+    
 
     def _estimate_object_store_memory(
         self, op: "PhysicalOperator", state: "OpState"

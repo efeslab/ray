@@ -25,12 +25,20 @@ from ray.data._internal.execution.interfaces.physical_operator import (
     OpTask,
     Waitable,
 )
+
+from ray.data._internal.logical.operators.map_operator import FlatMap
+
+from ray.data._internal.logical.operators.read_operator import Read
+
 from ray.data._internal.execution.operators.base_physical_operator import (
     AllToAllOperator,
 )
 from ray.data._internal.execution.operators.actor_pool_map_operator import (
     ActorPoolMapOperator,
 )
+
+from ray.data._internal.execution.operators.map_operator import MapOperator
+
 from ray.data._internal.execution.operators.input_data_buffer import InputDataBuffer
 from ray.data._internal.execution.resource_manager import ResourceManager
 from ray.data._internal.progress_bar import ProgressBar
@@ -451,7 +459,7 @@ def process_completed_tasks(
     if active_tasks:
         ready, _ = ray.wait(
             list(active_tasks.keys()),
-            num_returns=len(active_tasks),
+            num_returns=max(1, int(0.25 * len(active_tasks))),
             fetch_local=False,
             timeout=0.1,
         )
@@ -465,7 +473,37 @@ def process_completed_tasks(
         for ref in ready:
             state, task = active_tasks[ref]
             ready_tasks_by_op[state].append(task)
-
+            
+            
+        partition_size = DataContext.get_current().target_max_block_size
+            
+        for ready_state in ready_tasks_by_op:
+            ready_op = ready_state.op
+            logical_ops = ready_op._logical_operators
+            
+            # print(f"Finished operator: {ready_op.name}, num tasks: {len(ready_tasks_by_op[ready_state])}")
+            
+            contains_flatmap = False
+            contains_read = False
+            for logical_op in logical_ops:
+                if isinstance(logical_op, FlatMap):
+                    contains_flatmap = True
+                    break
+                if isinstance(logical_op, Read):
+                    contains_read = True
+                    break
+            tasks = ready_tasks_by_op[ready_state]
+            for task in tasks:
+                resource_manager._mem_usage -= partition_size
+                resource_manager._cpu_usage -= 1
+                if contains_flatmap:
+                    resource_manager._mem_usage -= partition_size
+                elif contains_read:
+                    resource_manager._mem_usage += partition_size 
+                else:
+                    resource_manager._mem_usage += 0
+                # print(f"Logical operator: {logical_op}")
+            # assert False
         for state, ready_tasks in ready_tasks_by_op.items():
             ready_tasks = sorted(ready_tasks, key=lambda t: t.task_index())
             for task in ready_tasks:
@@ -571,34 +609,65 @@ def select_operator_to_run(
     provides backpressure if the consumer is slow. However, once a bundle is returned
     to the user, it is no longer tracked.
     """
-    # Filter to ops that are eligible for execution.
+    # TODO: 1. are we at object store memory limit?
+    # 2. do we have 1 in-flight task per core?
+    # print(resource_manager.get_global_limits().object_store_memory_str())
+    # assert False
+    
+    # # Filter to ops that are eligible for execution.
     ops = []
-    for op, state in topology.items():
-        assert resource_manager.op_resource_allocator_enabled(), topology
-        under_resource_limits = (
-            resource_manager.op_resource_allocator.can_submit_new_task(op)
-        )
-        in_backpressure = not under_resource_limits or any(
-            not p.can_add_input(op) for p in backpressure_policies
-        )
-        op_runnable = False
-        if (
-            not in_backpressure
-            and not op.completed()
-            and state.num_queued() > 0
-            and op.should_add_input()
-        ):
-            ops.append(op)
-            op_runnable = True
-        # Update scheduling status
-        state._scheduling_status = OpSchedulingStatus(
-            selected=False,
-            runnable=op_runnable,
-            under_resource_limits=under_resource_limits,
-        )
+    # for op, state in topology.items():
+    #     assert resource_manager.op_resource_allocator_enabled(), topology
+    #     under_resource_limits = (
+    #         resource_manager.op_resource_allocator.can_submit_new_task(op)
+    #     )
+    #     in_backpressure = not under_resource_limits or any(
+    #         not p.can_add_input(op) for p in backpressure_policies
+    #     )
+    #     # in_backpressure = False
+    #     op_runnable = False
+    #     if (
+    #         not in_backpressure
+    #         and not op.completed()
+    #         and state.num_queued() > 0
+    #         and op.should_add_input()
+    #     ):
+    #         ops.append(op)
+    #         op_runnable = True
+    #     # Update scheduling status
+    #     state._scheduling_status = OpSchedulingStatus(
+    #         selected=False,
+    #         runnable=op_runnable,
+    #         under_resource_limits=under_resource_limits,
+    #     )
 
-        # Signal whether op in backpressure for stats collections
-        op.notify_in_task_submission_backpressure(in_backpressure)
+    #     # Signal whether op in backpressure for stats collections
+    #     op.notify_in_task_submission_backpressure(in_backpressure)
+    
+    total_memory = resource_manager.get_global_limits().object_store_memory
+    total_cpu = resource_manager.get_global_limits().cpu * 2
+    partition_size = DataContext.get_current().target_max_block_size
+    skip_reasons = []
+    for op, state in topology.items():
+        if resource_manager._mem_usage + partition_size > total_memory:
+            # Memory limit reached, skip this op
+            # print(f"Backpressured op: {op.name}, mem usage: {resource_manager._mem_usage}")
+            skip_reasons.append(f"Not selected due to memory limit op: {op.name}, mem usage: {resource_manager._mem_usage}")
+            continue
+        if resource_manager._cpu_usage + 1 > total_cpu:
+            # CPU limit reached, skip this op
+            # print(f"CPU limit op: {op.name}, cpu usage: {resource_manager._cpu_usage}")
+            skip_reasons.append(f"Not selected due to CPU limit op: {op.name}, cpu usage: {resource_manager._cpu_usage}")
+            continue
+        if state.num_queued() == 0:
+            # print(f"Nothing queued op: {op.name}, num queued: {state.num_queued()}")
+            skip_reasons.append(f"Not selected due to nothing queued op: {op.name}, num queued: {state.num_queued()}")
+            continue
+        ops.append(op)
+        # resource_manager._mem_usage += partition_size
+        # resource_manager._cpu_usage += 1
+    
+    # print(f"Selected candidate length: {len(ops)}")
 
     # To ensure liveness, allow at least 1 op to run regardless of limits. This is
     # gated on `ensure_at_least_one_running`, which is set if the consumer is blocked.
@@ -627,4 +696,21 @@ def select_operator_to_run(
         )
         topology[selected_op]._scheduling_status.selected = True
     autoscaler.try_trigger_scaling()
+    
+    if isinstance(selected_op, MapOperator):
+        resource_manager._mem_usage += partition_size
+        resource_manager._cpu_usage += 1
+    
+    # if selected_op is None:    
+    #     print("Nothing selected, reasons:")
+    #     for reason in skip_reasons:
+    #         print(reason)
+        # for op, state in topology.items():
+        #     if isinstance(op, InputDataBuffer) and state.num_queued() > 0:
+        #         selected_op = op
+        #         break
+        
+    
+    # print(f"Selected op: {selected_op}, mem usage: {resource_manager._mem_usage}, cpu usage: {resource_manager._cpu_usage}")
+    
     return selected_op

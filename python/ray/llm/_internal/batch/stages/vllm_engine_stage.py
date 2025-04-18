@@ -319,6 +319,7 @@ class vLLMEngineWrapper:
                 llm_prompt = vllm.inputs.data.TextPrompt(prompt=request.prompt)
 
         # Send the request to the LLM engine.
+        
         stream = await self.engine.add_request(
             request_id=str(request.request_id),
             prompt=llm_prompt,
@@ -421,7 +422,7 @@ class vLLMEngineStageUDF(StatefulStageUDF):
             self.engine_kwargs.get("max_num_seqs", 128) * pp_size * 1.1
         )
         if self.max_pending_requests > 0:
-            logger.info("Max pending requests is set to %d", self.max_pending_requests)
+            logger.info("Max pending requests is set to %d, I've changed this line, and then changed!", self.max_pending_requests)
 
         # Create an LLM engine.
         self.llm = vLLMEngineWrapper(
