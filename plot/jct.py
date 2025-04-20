@@ -6,11 +6,17 @@ def plot_completion_time_with_staged(data_dict, output_dir, title="RAG Benchmark
     FONT_SIZE = 18
 
     # Staged batch baseline (1 GPU) in minutes
+    # staged_batch_times = {
+    #     "Encoding": 410.20 / 60,
+    #     "Retrieval": 343.34 / 60,
+    #     "Generation": 3051.68 / 60
+    # }
     staged_batch_times = {
-        "Encoding": 410.20 / 60,
-        "Retrieval": 343.34 / 60,
-        "Generation": 3051.68 / 60
+        "Encoding": 1093.43 / 60,
+        "Retrieval": 740.68 / 60,
+        "Generation": 7713.11 / 60
     }
+    
 
     # Sort GPU bars
     sorted_items = sorted(data_dict.items(), key=lambda x: int(x[0].split()[0]))
@@ -47,8 +53,8 @@ def plot_completion_time_with_staged(data_dict, output_dir, title="RAG Benchmark
     plt.axvline(x=1.5, color="black", linestyle="--", linewidth=1)
 
     # Y-axis formatting
-    plt.ylim(0, 68)
-    plt.yticks(range(0, 61, 10), fontsize=FONT_SIZE)
+    plt.ylim(0, 170)
+    plt.yticks(range(0, 161, 20), fontsize=FONT_SIZE)
     plt.xticks(bar_positions, labels, fontsize=FONT_SIZE)
 
     # Titles & labels
@@ -68,11 +74,17 @@ def plot_completion_time_with_staged(data_dict, output_dir, title="RAG Benchmark
     plt.savefig(f"{output_dir}/job_completion_time_v2.pdf")
 
 # Example usage
+# data = {
+#     f"1 GPU\n{SYSTEM_NAME}": 49.5,
+#     "2 GPU": 26.0,
+#     "3 GPU": 18.4,
+#     "4 GPU": 14.4
+# }
 data = {
-    f"1 GPU\n{SYSTEM_NAME}": 49.5,
-    "2 GPU": 26.0,
-    "3 GPU": 18.4,
-    "4 GPU": 14.4
+    f"1 GPU\n{SYSTEM_NAME}": 7226.16 / 60,
+    "2 GPU": 3835.33 / 60,
+    "4 GPU": 2016.42 / 60,
+    "8 GPU": 1119.92 / 60,
 }
 output_dir = "/m-coriander/coriander/yilegu/ray/ray/logs/finalized"
 plot_completion_time_with_staged(data, output_dir=output_dir)
