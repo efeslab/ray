@@ -457,6 +457,11 @@ def process_completed_tasks(
     # Process completed Ray tasks and notify operators.
     num_errored_blocks = 0
     if active_tasks:
+        print(f"Active tasks: {len(active_tasks)}, cpu usage: {resource_manager._cpu_usage}")
+        for ref, (state, task) in active_tasks.items():
+            print(f"Active task from operater {state.op.name}")
+            print(f"Task: {task}")
+        # assert len(active_tasks) == resource_manager._cpu_usage
         ready, _ = ray.wait(
             list(active_tasks.keys()),
             num_returns=max(1, int(0.25 * len(active_tasks))),
@@ -503,6 +508,11 @@ def process_completed_tasks(
                 else:
                     resource_manager._mem_usage += 0
                 # print(f"Logical operator: {logical_op}")
+                
+            print(f"Finished operator: {ready_op.name}, num tasks: {len(ready_tasks_by_op[ready_state])}, mem usage: {resource_manager._mem_usage}, cpu usage: {resource_manager._cpu_usage}")
+            for task in tasks:
+                print(f"Task: {task}")
+            
             # assert False
         for state, ready_tasks in ready_tasks_by_op.items():
             ready_tasks = sorted(ready_tasks, key=lambda t: t.task_index())
@@ -645,7 +655,8 @@ def select_operator_to_run(
     #     op.notify_in_task_submission_backpressure(in_backpressure)
     
     total_memory = resource_manager.get_global_limits().object_store_memory
-    total_cpu = resource_manager.get_global_limits().cpu * 2
+    # total_cpu = resource_manager.get_global_limits().cpu * 2
+    total_cpu = 224
     partition_size = DataContext.get_current().target_max_block_size
     skip_reasons = []
     for op, state in topology.items():
@@ -701,16 +712,16 @@ def select_operator_to_run(
         resource_manager._mem_usage += partition_size
         resource_manager._cpu_usage += 1
     
-    # if selected_op is None:    
-    #     print("Nothing selected, reasons:")
-    #     for reason in skip_reasons:
-    #         print(reason)
-        # for op, state in topology.items():
-        #     if isinstance(op, InputDataBuffer) and state.num_queued() > 0:
-        #         selected_op = op
-        #         break
+    if selected_op is None:    
+        print("Nothing selected, reasons:")
+        for reason in skip_reasons:
+            print(reason)
+        for op, state in topology.items():
+            if isinstance(op, InputDataBuffer) and state.num_queued() > 0:
+                selected_op = op
+                break
         
     
-    # print(f"Selected op: {selected_op}, mem usage: {resource_manager._mem_usage}, cpu usage: {resource_manager._cpu_usage}")
+    print(f"Selected op: {selected_op}, mem usage: {resource_manager._mem_usage}, cpu usage: {resource_manager._cpu_usage}")
     
     return selected_op
