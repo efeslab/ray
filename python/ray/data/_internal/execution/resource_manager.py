@@ -84,6 +84,7 @@ class ResourceManager:
         
         self._mem_usage = 0
         self._cpu_usage = 0
+        self._total_tasks = 0
 
         if data_context.op_resource_reservation_enabled:
             # We'll enable memory reservation if all operators have

@@ -457,18 +457,19 @@ def process_completed_tasks(
     # Process completed Ray tasks and notify operators.
     num_errored_blocks = 0
     if active_tasks:
-        print(f"Active tasks: {len(active_tasks)}, cpu usage: {resource_manager._cpu_usage}")
-        for ref, (state, task) in active_tasks.items():
-            print(f"Active task from operater {state.op.name}")
-            print(f"Task: {task}")
+        logging.info(f"[Before ray.wait] Active tasks: {len(active_tasks)}, cpu usage: {resource_manager._cpu_usage}")
+        # for ref, (state, task) in active_tasks.items():
+        #     logging.info(f"Active task from operater {state.op.name}")
+        #     logging.info(f"Task: {task}")
         # assert len(active_tasks) == resource_manager._cpu_usage
         ready, _ = ray.wait(
             list(active_tasks.keys()),
-            num_returns=max(1, int(0.25 * len(active_tasks))),
+            num_returns=max(1, int(0.1 * len(active_tasks))),
+            # num_returns=max(1, int(1 * len(active_tasks))),
             fetch_local=False,
             timeout=0.1,
         )
-
+        logging.info(f"[After ray.wait] Ready tasks: {len(ready)}, Active tasks: {len(active_tasks)}, cpu usage: {resource_manager._cpu_usage}")
         # Organize tasks by the operator they belong to, and sort them by task index.
         # So that we'll process them in a deterministic order.
         # This is because OpResourceAllocator may limit the number of blocks to read
@@ -486,7 +487,7 @@ def process_completed_tasks(
             ready_op = ready_state.op
             logical_ops = ready_op._logical_operators
             
-            # print(f"Finished operator: {ready_op.name}, num tasks: {len(ready_tasks_by_op[ready_state])}")
+            # logging.info(f"Finished operator: {ready_op.name}, num tasks: {len(ready_tasks_by_op[ready_state])}")
             
             contains_flatmap = False
             contains_read = False
@@ -509,9 +510,9 @@ def process_completed_tasks(
                     resource_manager._mem_usage += 0
                 # print(f"Logical operator: {logical_op}")
                 
-            print(f"Finished operator: {ready_op.name}, num tasks: {len(ready_tasks_by_op[ready_state])}, mem usage: {resource_manager._mem_usage}, cpu usage: {resource_manager._cpu_usage}")
-            for task in tasks:
-                print(f"Task: {task}")
+            # logging.info(f"Finished operator: {ready_op.name}, num tasks: {len(ready_tasks_by_op[ready_state])}, mem usage: {resource_manager._mem_usage}, cpu usage: {resource_manager._cpu_usage}")
+            # for task in tasks:
+            #     logging.info(f"Task: {task}")
             
             # assert False
         for state, ready_tasks in ready_tasks_by_op.items():
@@ -682,17 +683,17 @@ def select_operator_to_run(
 
     # To ensure liveness, allow at least 1 op to run regardless of limits. This is
     # gated on `ensure_at_least_one_running`, which is set if the consumer is blocked.
-    if (
-        ensure_at_least_one_running
-        and not ops
-        and all(op.num_active_tasks() == 0 for op in topology)
-    ):
-        # The topology is entirely idle, so choose from all ready ops ignoring limits.
-        ops = [
-            op
-            for op, state in topology.items()
-            if state.num_queued() > 0 and not op.completed()
-        ]
+    # if (
+    #     ensure_at_least_one_running
+    #     and not ops
+    #     and all(op.num_active_tasks() == 0 for op in topology)
+    # ):
+    #     # The topology is entirely idle, so choose from all ready ops ignoring limits.
+    #     ops = [
+    #         op
+    #         for op, state in topology.items()
+    #         if state.num_queued() > 0 and not op.completed()
+    #     ]
 
     selected_op = None
     if ops:
@@ -713,15 +714,16 @@ def select_operator_to_run(
         resource_manager._cpu_usage += 1
     
     if selected_op is None:    
-        print("Nothing selected, reasons:")
-        for reason in skip_reasons:
-            print(reason)
+        # logging.info("Nothing selected, reasons:")
+        # for reason in skip_reasons:
+        #     logging.info(reason)
         for op, state in topology.items():
             if isinstance(op, InputDataBuffer) and state.num_queued() > 0:
                 selected_op = op
                 break
-        
+    else:
+        resource_manager._total_tasks += 1
     
-    print(f"Selected op: {selected_op}, mem usage: {resource_manager._mem_usage}, cpu usage: {resource_manager._cpu_usage}")
+    logging.info(f"Selected op: {selected_op}, mem usage: {resource_manager._mem_usage}, cpu usage: {resource_manager._cpu_usage}, total tasks: {resource_manager._total_tasks}")
     
     return selected_op
