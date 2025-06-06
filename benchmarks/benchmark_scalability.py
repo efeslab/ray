@@ -21,7 +21,7 @@ class MicrosecondFormatter(logging.Formatter):
 
 def run_ray_data(output_dir):
     NUM_NODES = 1
-    NUM_ITEMS = 2 * 20_000 * NUM_NODES
+    NUM_ITEMS = 2 * 20_000 * NUM_NODES / 6
     ITEM_SHAPE = 1024 * 1024  # elements
     DTYPE_SIZE = 8  # bytes
 

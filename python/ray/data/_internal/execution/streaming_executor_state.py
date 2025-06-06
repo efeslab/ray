@@ -657,7 +657,7 @@ def select_operator_to_run(
     
     total_memory = resource_manager.get_global_limits().object_store_memory
     # total_cpu = resource_manager.get_global_limits().cpu * 2
-    total_cpu = 224
+    total_cpu = 8
     partition_size = DataContext.get_current().target_max_block_size
     skip_reasons = []
     for op, state in topology.items():
