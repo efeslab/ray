@@ -36,6 +36,7 @@ class OpTask(ABC):
     ):
         self._task_index: int = task_index
         self._task_resource_bundle: Optional[ExecutionResources] = task_resource_bundle
+        self._task_finished = False
 
     def task_index(self) -> int:
         """Return the index of the task."""
@@ -43,6 +44,9 @@ class OpTask(ABC):
 
     def get_requested_resource_bundle(self) -> Optional[ExecutionResources]:
         return self._task_resource_bundle
+    
+    def get_task_finished(self) -> bool:
+        return self._task_finished
 
     @abstractmethod
     def get_waitable(self) -> Waitable:
@@ -97,6 +101,7 @@ class DataOpTask(OpTask):
                     # And it's not stopped yet.
                     break
             except StopIteration:
+                self._task_finished = True
                 self._task_done_callback(None)
                 break
 
@@ -113,6 +118,7 @@ class DataOpTask(OpTask):
                     ray.get(block_ref)
                     assert False, "Above ray.get should raise an exception."
                 except Exception as ex:
+                    self._task_finished = True
                     self._task_done_callback(ex)
                     raise ex from None
             self._output_ready_callback(
@@ -146,6 +152,7 @@ class MetadataOpTask(OpTask):
 
     def on_task_finished(self):
         """Callback when the task is finished."""
+        self._task_finished = True
         self._task_done_callback()
 
 

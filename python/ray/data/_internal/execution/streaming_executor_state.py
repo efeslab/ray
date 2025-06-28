@@ -464,8 +464,9 @@ def process_completed_tasks(
         # assert len(active_tasks) == resource_manager._cpu_usage
         ready, _ = ray.wait(
             list(active_tasks.keys()),
-            num_returns=max(1, int(0.1 * len(active_tasks))),
+            # num_returns=max(1, int(0.1 * len(active_tasks))),
             # num_returns=max(1, int(1 * len(active_tasks))),
+            num_returns=len(active_tasks),
             fetch_local=False,
             timeout=0.1,
         )
@@ -498,16 +499,16 @@ def process_completed_tasks(
                 if isinstance(logical_op, Read):
                     contains_read = True
                     break
-            tasks = ready_tasks_by_op[ready_state]
-            for task in tasks:
-                resource_manager._mem_usage -= partition_size
-                resource_manager._cpu_usage -= 1
-                if contains_flatmap:
-                    resource_manager._mem_usage -= partition_size
-                elif contains_read:
-                    resource_manager._mem_usage += partition_size 
-                else:
-                    resource_manager._mem_usage += 0
+            # tasks = ready_tasks_by_op[ready_state]
+            # for task in tasks:
+            #     resource_manager._mem_usage -= partition_size
+            #     resource_manager._cpu_usage -= 1
+            #     if contains_flatmap:
+            #         resource_manager._mem_usage -= partition_size
+            #     elif contains_read:
+            #         resource_manager._mem_usage += partition_size 
+            #     else:
+            #         resource_manager._mem_usage += 0
                 # print(f"Logical operator: {logical_op}")
                 
             # logging.info(f"Finished operator: {ready_op.name}, num tasks: {len(ready_tasks_by_op[ready_state])}, mem usage: {resource_manager._mem_usage}, cpu usage: {resource_manager._cpu_usage}")
@@ -557,6 +558,9 @@ def process_completed_tasks(
                 else:
                     assert isinstance(task, MetadataOpTask)
                     task.on_task_finished()
+                if task.get_task_finished():
+                    resource_manager._mem_usage -= partition_size
+                    resource_manager._cpu_usage -= 1
 
     # Pull any operator outputs into the streaming op state.
     for op, op_state in topology.items():
