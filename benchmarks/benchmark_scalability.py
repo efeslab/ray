@@ -20,8 +20,8 @@ class MicrosecondFormatter(logging.Formatter):
 
 
 def run_ray_data(output_dir):
-    NUM_NODES = 1
-    NUM_ITEMS = 2 * 20_000 * NUM_NODES / 6
+    NUM_NODES = 8
+    NUM_ITEMS = 2 * 20_000 * NUM_NODES / 25
     ITEM_SHAPE = 1024 * 1024  # elements
     DTYPE_SIZE = 8  # bytes
 
@@ -30,7 +30,7 @@ def run_ray_data(output_dir):
     # data_context.execution_options.verbose_progress = True
     data_context.override_object_store_memory_limit_fraction = 1
     # data_context.target_max_block_size = 1024 ** 3  # 1 GB
-    ray.init("auto")
+    ray.init()
     
     # warmup
     for i in range(5):
@@ -70,24 +70,26 @@ def ray_original_task():
 
 
 def run_ray_original(output_dir):
-    NUM_ITEMS = 16
+    NUM_NODES = 8
+    NUM_WARMUP_ITEMS = 100 * NUM_NODES
+    NUM_ITEMS = 100 * NUM_NODES
     ITEM_SHAPE = 1024 * 1024  # elements
     DTYPE_SIZE = 8  # bytes
 
-    ray.init("auto")
+    ray.init()
 
     # Warm up workers
-    for i in range(10):
-        warmup_tasks = [ray_original_task.remote() for _ in range(300)]
+    for i in range(2):
+        warmup_tasks = [ray_original_task.remote() for _ in range(NUM_WARMUP_ITEMS)]
         # ray.get(warmup_tasks)
         while warmup_tasks:
             ready_tasks, warmup_tasks = ray.wait(warmup_tasks)
             # for ready_task in ready_tasks:
             #     ray.get(next(ready_task))
 
-    for i in range(10):
+    for i in range(2):
         start_time = time.perf_counter()
-        tasks = [ray_original_task.remote() for _ in range(455)]
+        tasks = [ray_original_task.remote() for _ in range(NUM_ITEMS)]
         # ray.get(tasks)
         while tasks:
             ready_tasks, tasks = ray.wait(tasks)
@@ -96,7 +98,7 @@ def run_ray_original(output_dir):
         end_time = time.perf_counter()
 
         # Each task handles approx 1 GB tensor
-        total_data_size = 455 / 8  # GB
+        total_data_size = NUM_ITEMS / 8  # GB
         print("[Ray Original]")
         print("Total data size in GB:", total_data_size)
         print("Total time taken in seconds:", end_time - start_time)
