@@ -19,9 +19,9 @@ class MicrosecondFormatter(logging.Formatter):
             return dt.strftime('%Y-%m-%d %H:%M:%S.%f')
 
 
-def run_ray_data(output_dir):
-    NUM_NODES = 8
-    NUM_ITEMS = 2 * 20_000 * NUM_NODES / 25
+def run_ray_data(output_dir, num_nodes):
+    # 128 * x GB
+    NUM_ITEMS = 128 * 100 * num_nodes
     ITEM_SHAPE = 1024 * 1024  # elements
     DTYPE_SIZE = 8  # bytes
 
@@ -69,17 +69,17 @@ def ray_original_task():
     # return np.ones((1024, 1024), dtype=np.int64) * np.expand_dims(np.arange(0, 16), tuple(range(1, 1 + 2)))
 
 
-def run_ray_original(output_dir):
-    NUM_NODES = 8
-    NUM_WARMUP_ITEMS = 100 * NUM_NODES
-    NUM_ITEMS = 100 * NUM_NODES
+def run_ray_original(output_dir, num_nodes):
+    # x GB per node
+    NUM_WARMUP_ITEMS = 100 * num_nodes
+    NUM_ITEMS = 100 * num_nodes
     ITEM_SHAPE = 1024 * 1024  # elements
     DTYPE_SIZE = 8  # bytes
 
     ray.init()
 
     # Warm up workers
-    for i in range(2):
+    for i in range(5):
         warmup_tasks = [ray_original_task.remote() for _ in range(NUM_WARMUP_ITEMS)]
         # ray.get(warmup_tasks)
         while warmup_tasks:
@@ -87,7 +87,7 @@ def run_ray_original(output_dir):
             # for ready_task in ready_tasks:
             #     ray.get(next(ready_task))
 
-    for i in range(2):
+    for i in range(5):
         start_time = time.perf_counter()
         tasks = [ray_original_task.remote() for _ in range(NUM_ITEMS)]
         # ray.get(tasks)
@@ -111,6 +111,7 @@ def run_ray_original(output_dir):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Benchmark Ray Data vs Ray Original")
     parser.add_argument("--mode", choices=["ray_data", "ray_original"], required=True, help="Which benchmark to run")
+    parser.add_argument("--num_nodes", type=int, default=1, help="Number of nodes to use")
     parser.add_argument("--output_dir", type=str, default="")
     args = parser.parse_args()
     
@@ -132,6 +133,6 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, handlers=[handler])
 
     if args.mode == "ray_data":
-        run_ray_data(args.output_dir)
+        run_ray_data(args.output_dir, args.num_nodes)
     elif args.mode == "ray_original":
-        run_ray_original(args.output_dir)
+        run_ray_original(args.output_dir, args.num_nodes)

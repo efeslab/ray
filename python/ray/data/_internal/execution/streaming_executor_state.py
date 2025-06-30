@@ -464,11 +464,11 @@ def process_completed_tasks(
         # assert len(active_tasks) == resource_manager._cpu_usage
         ready, _ = ray.wait(
             list(active_tasks.keys()),
-            # num_returns=max(1, int(0.1 * len(active_tasks))),
+            num_returns=max(1, int(0.1 * len(active_tasks))),
             # num_returns=max(1, int(1 * len(active_tasks))),
-            num_returns=len(active_tasks),
+            # num_returns=len(active_tasks),
             fetch_local=False,
-            timeout=0.1,
+            timeout=0.01,
         )
         logging.info(f"[After ray.wait] Ready tasks: {len(ready)}, Active tasks: {len(active_tasks)}, cpu usage: {resource_manager._cpu_usage}")
         # Organize tasks by the operator they belong to, and sort them by task index.
@@ -559,6 +559,10 @@ def process_completed_tasks(
                     assert isinstance(task, MetadataOpTask)
                     task.on_task_finished()
                 if task.get_task_finished():
+                    if isinstance(task, DataOpTask):
+                        logging.info(f"Data Task {task.task_index()} finished: {task.get_task_time()}")
+                    else:
+                        logging.info(f"Metadata Task {task.task_index()} finished: {task.get_task_time()}")
                     resource_manager._mem_usage -= partition_size
                     resource_manager._cpu_usage -= 1
 
@@ -660,8 +664,8 @@ def select_operator_to_run(
     #     op.notify_in_task_submission_backpressure(in_backpressure)
     
     total_memory = resource_manager.get_global_limits().object_store_memory
-    # total_cpu = resource_manager.get_global_limits().cpu * 2
-    total_cpu = 8
+    total_cpu = resource_manager.get_global_limits().cpu
+    # total_cpu = 8
     partition_size = DataContext.get_current().target_max_block_size
     skip_reasons = []
     for op, state in topology.items():

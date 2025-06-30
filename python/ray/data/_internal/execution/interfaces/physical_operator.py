@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, Iterator, List, Optional, Union
 import uuid
+import time
+import logging
 
 import ray
 from .ref_bundle import RefBundle
@@ -37,7 +39,8 @@ class OpTask(ABC):
         self._task_index: int = task_index
         self._task_resource_bundle: Optional[ExecutionResources] = task_resource_bundle
         self._task_finished = False
-
+        self._task_start_time = time.time()
+        self._task_end_time = None
     def task_index(self) -> int:
         """Return the index of the task."""
         return self._task_index
@@ -47,6 +50,10 @@ class OpTask(ABC):
     
     def get_task_finished(self) -> bool:
         return self._task_finished
+    
+    def get_task_time(self) -> float:
+        assert self._task_end_time is not None, "Task is not finished"
+        return self._task_end_time - self._task_start_time
 
     @abstractmethod
     def get_waitable(self) -> Waitable:
@@ -96,12 +103,14 @@ class DataOpTask(OpTask):
         while max_bytes_to_read is None or bytes_read < max_bytes_to_read:
             try:
                 block_ref = self._streaming_gen._next_sync(0)
+                logging.info(f"Data Task {self} object at {block_ref}")
                 if block_ref.is_nil():
                     # The generator currently doesn't have new output.
                     # And it's not stopped yet.
                     break
             except StopIteration:
                 self._task_finished = True
+                self._task_end_time = time.time()
                 self._task_done_callback(None)
                 break
 
@@ -119,6 +128,7 @@ class DataOpTask(OpTask):
                     assert False, "Above ray.get should raise an exception."
                 except Exception as ex:
                     self._task_finished = True
+                    self._task_end_time = time.time()
                     self._task_done_callback(ex)
                     raise ex from None
             self._output_ready_callback(
@@ -153,6 +163,7 @@ class MetadataOpTask(OpTask):
     def on_task_finished(self):
         """Callback when the task is finished."""
         self._task_finished = True
+        self._task_end_time = time.time()
         self._task_done_callback()
 
 
