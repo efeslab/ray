@@ -19,9 +19,9 @@ class MicrosecondFormatter(logging.Formatter):
             return dt.strftime('%Y-%m-%d %H:%M:%S.%f')
 
 
-def run_ray_data(output_dir, num_nodes):
-    # 128 * x GB
-    NUM_ITEMS = 128 * 100 * num_nodes
+def run_ray_data(output_dir, num_nodes, size):
+    # 128 * size GB per node
+    NUM_ITEMS = 128 * size * num_nodes
     ITEM_SHAPE = 1024 * 1024  # elements
     DTYPE_SIZE = 8  # bytes
 
@@ -64,15 +64,16 @@ def run_ray_data(output_dir, num_nodes):
 
 @ray.remote
 def ray_original_task():
+    # 128MB per task
     # ray.put(np.ones((1024, 1024), dtype=np.int64) * np.expand_dims(np.arange(0, 128), tuple(range(1, 1 + 2))))
-    yield np.ones((1024, 1024), dtype=np.int64) * np.expand_dims(np.arange(0, 16), tuple(range(1, 1 + 2)))
-    # return np.ones((1024, 1024), dtype=np.int64) * np.expand_dims(np.arange(0, 16), tuple(range(1, 1 + 2)))
+    # yield np.ones((1024, 1024), dtype=np.int64) * np.expand_dims(np.arange(0, 16), tuple(range(1, 1 + 2)))
+    return np.ones((1024, 1024), dtype=np.int64) * np.expand_dims(np.arange(0, 16), tuple(range(1, 1 + 2)))
 
 
-def run_ray_original(output_dir, num_nodes):
-    # x GB per node
-    NUM_WARMUP_ITEMS = 100 * num_nodes
-    NUM_ITEMS = 100 * num_nodes
+def run_ray_original(output_dir, num_nodes, size):
+    # 8 x size GB per node
+    NUM_WARMUP_ITEMS = 8 * size * num_nodes
+    NUM_ITEMS = 8 * size * num_nodes
     ITEM_SHAPE = 1024 * 1024  # elements
     DTYPE_SIZE = 8  # bytes
 
@@ -83,18 +84,20 @@ def run_ray_original(output_dir, num_nodes):
         warmup_tasks = [ray_original_task.remote() for _ in range(NUM_WARMUP_ITEMS)]
         # ray.get(warmup_tasks)
         while warmup_tasks:
-            ready_tasks, warmup_tasks = ray.wait(warmup_tasks)
-            # for ready_task in ready_tasks:
-            #     ray.get(next(ready_task))
+            ready_tasks, warmup_tasks = ray.wait(warmup_tasks, num_returns=1)
+            for ready_task in ready_tasks:
+                ray.get(ready_task)
+            del ready_tasks
 
     for i in range(5):
         start_time = time.perf_counter()
         tasks = [ray_original_task.remote() for _ in range(NUM_ITEMS)]
         # ray.get(tasks)
         while tasks:
-            ready_tasks, tasks = ray.wait(tasks)
-            # for ready_task in ready_tasks:
-            #     ray.get(next(ready_task))
+            ready_tasks, tasks = ray.wait(tasks, num_returns=1)
+            for ready_task in ready_tasks:
+                ray.get(ready_task)
+            del ready_tasks
         end_time = time.perf_counter()
 
         # Each task handles approx 1 GB tensor
@@ -112,6 +115,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Benchmark Ray Data vs Ray Original")
     parser.add_argument("--mode", choices=["ray_data", "ray_original"], required=True, help="Which benchmark to run")
     parser.add_argument("--num_nodes", type=int, default=1, help="Number of nodes to use")
+    parser.add_argument("--size", type=int, default=100, help="Size of the dataset in GB")
     parser.add_argument("--output_dir", type=str, default="")
     args = parser.parse_args()
     
@@ -133,6 +137,6 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, handlers=[handler])
 
     if args.mode == "ray_data":
-        run_ray_data(args.output_dir, args.num_nodes)
+        run_ray_data(args.output_dir, args.num_nodes, args.size)
     elif args.mode == "ray_original":
-        run_ray_original(args.output_dir, args.num_nodes)
+        run_ray_original(args.output_dir, args.num_nodes, args.size)
