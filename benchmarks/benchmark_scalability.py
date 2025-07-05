@@ -20,6 +20,7 @@ class MicrosecondFormatter(logging.Formatter):
 
 
 def run_ray_data(output_dir, num_nodes, size):
+    num_nodes = max(num_nodes - 1, 1)
     # 128 * size GB per node
     NUM_ITEMS = 128 * size * num_nodes
     ITEM_SHAPE = 1024 * 1024  # elements
@@ -28,34 +29,48 @@ def run_ray_data(output_dir, num_nodes, size):
     data_context = DataContext.get_current()
     data_context.op_resource_reservation_ratio = 0
     # data_context.execution_options.verbose_progress = True
-    data_context.override_object_store_memory_limit_fraction = 1
-    # data_context.target_max_block_size = 1024 ** 3  # 1 GB
-    ray.init()
+    # data_context.override_object_store_memory_limit_fraction = 1
+    # data_context.target_max_block_size = 128 * 1024 ** 2  # 128 MB
+    # data_context.target_max_block_size = 512 * 1024 ** 2  # 512 MB
+    data_context.target_max_block_size = 1024 ** 3  # 1 GB
+    ray.init("auto")
+    
     
     # warmup
     for i in range(5):
         ds = ray.data.range_tensor(NUM_ITEMS, shape=(ITEM_SHAPE,))
-        ds = ds.flat_map(lambda x: [], num_cpus=0.99)
-        for batch in ds.iter_batches():
-            continue
+        # ds = ds.flat_map(lambda x: [], num_cpus=0.99)
+        ds.materialize()
+        # for batch in ds.iter_batches():
+        #     continue
 
-    for i in range(5):
+
+    total_time = 0
+    profile_time = 5
+    for i in range(profile_time):
         logging.info(f"Start {i}-th benchmark") 
         ds = ray.data.range_tensor(NUM_ITEMS, shape=(ITEM_SHAPE,))
-        ds = ds.flat_map(lambda x: [], num_cpus=0.99)
+        # ds = ds.flat_map(lambda x: [], num_cpus=0.99)
+        start_time = time.perf_counter()
+        ds.materialize()
+        end_time = time.perf_counter()
+        total_time += end_time - start_time
+        # print("Total time taken in seconds:", end_time - start_time)
 
         # logging.info("Start actual benchmark")
         
-        start_time = time.perf_counter()
-        for batch in ds.iter_batches():
-            continue
-        end_time = time.perf_counter()
+        # start_time = time.perf_counter()
+        # for batch in ds.iter_batches():
+        #     continue
+        # end_time = time.perf_counter()
 
-        total_data_size = NUM_ITEMS * ITEM_SHAPE * DTYPE_SIZE / (1024 ** 3)  # GB
-        print("[Ray Data]")
-        print("Total data size in GB:", total_data_size)
-        print("Total time taken in seconds:", end_time - start_time)
-        print("Throughput in GB/s:", total_data_size / (end_time - start_time))
+    total_data_size = NUM_ITEMS * ITEM_SHAPE * DTYPE_SIZE / (1024 ** 3)  # GB
+    
+    avg_time = total_time / profile_time
+    print("[Ray Data]")
+    print("Total data size in GB:", total_data_size)
+    print("Total time taken in seconds:", avg_time)
+    print("Throughput in GB/s:", total_data_size / avg_time)
     # print(ds.stats())
 
     ray.timeline(os.path.join(output_dir, "timeline_ray_data_scalability.json"))
@@ -67,45 +82,58 @@ def ray_original_task():
     # 128MB per task
     # ray.put(np.ones((1024, 1024), dtype=np.int64) * np.expand_dims(np.arange(0, 128), tuple(range(1, 1 + 2))))
     # yield np.ones((1024, 1024), dtype=np.int64) * np.expand_dims(np.arange(0, 16), tuple(range(1, 1 + 2)))
-    return np.ones((1024, 1024), dtype=np.int64) * np.expand_dims(np.arange(0, 16), tuple(range(1, 1 + 2)))
+    # return ray.put(np.ones((1024, 1024), dtype=np.int64) * np.expand_dims(np.arange(0, 16), tuple(range(1, 1 + 2))))
+    # return np.ones((1024, 1024), dtype=np.int64) * np.expand_dims(np.arange(0, 16), tuple(range(1, 1 + 2)))
+    return np.ones((1024, 1024), dtype=np.int64) * np.expand_dims(np.arange(0, 128), tuple(range(1, 1 + 2)))
 
 
 def run_ray_original(output_dir, num_nodes, size):
+    num_nodes = max(num_nodes - 1, 1)
     # 8 x size GB per node
-    NUM_WARMUP_ITEMS = 8 * size * num_nodes
-    NUM_ITEMS = 8 * size * num_nodes
-    ITEM_SHAPE = 1024 * 1024  # elements
+    # NUM_WARMUP_ITEMS = 8 * size * num_nodes
+    # NUM_ITEMS = 8 * size * num_nodes
+    # NUM_WARMUP_ITEMS = 2 * size * num_nodes
+    # NUM_ITEMS = 2 * size * num_nodes
+    NUM_WARMUP_ITEMS = 1 * size * num_nodes
+    NUM_ITEMS = 1 * size * num_nodes
+    # ITEM_SHAPE = 1024 * 1024  # elements
     DTYPE_SIZE = 8  # bytes
 
-    ray.init()
+    ray.init("auto")
 
     # Warm up workers
     for i in range(5):
         warmup_tasks = [ray_original_task.remote() for _ in range(NUM_WARMUP_ITEMS)]
         # ray.get(warmup_tasks)
         while warmup_tasks:
-            ready_tasks, warmup_tasks = ray.wait(warmup_tasks, num_returns=1)
-            for ready_task in ready_tasks:
-                ray.get(ready_task)
-            del ready_tasks
+            ready_tasks, warmup_tasks = ray.wait(warmup_tasks, num_returns=1, fetch_local=False)
+            # for ready_task in ready_tasks:
+            #     ray.get(ready_task)
+            # del ready_tasks
 
-    for i in range(5):
+    total_time = 0
+    profile_time = 5
+    for i in range(profile_time):
         start_time = time.perf_counter()
         tasks = [ray_original_task.remote() for _ in range(NUM_ITEMS)]
         # ray.get(tasks)
         while tasks:
-            ready_tasks, tasks = ray.wait(tasks, num_returns=1)
-            for ready_task in ready_tasks:
-                ray.get(ready_task)
-            del ready_tasks
+            ready_tasks, tasks = ray.wait(tasks, num_returns=1, fetch_local=False)
+            # for ready_task in ready_tasks:
+            #     ray.get(ready_task)
+            # del ready_tasks
         end_time = time.perf_counter()
-
+        total_time += end_time - start_time
         # Each task handles approx 1 GB tensor
-        total_data_size = NUM_ITEMS / 8  # GB
-        print("[Ray Original]")
-        print("Total data size in GB:", total_data_size)
-        print("Total time taken in seconds:", end_time - start_time)
-        print("Throughput in GB/s:", total_data_size / (end_time - start_time))
+    # total_data_size = NUM_ITEMS / 8  # GB
+    # total_data_size = NUM_ITEMS / 2
+    total_data_size = NUM_ITEMS
+        
+    avg_time = total_time / profile_time
+    print("[Ray Original]")
+    print("Total data size in GB:", total_data_size)
+    print("Total time taken in seconds:", avg_time)
+    print("Throughput in GB/s:", total_data_size / avg_time)
 
     ray.timeline(os.path.join(output_dir, "timeline_ray_original_scalability.json"))
     ray.shutdown()
