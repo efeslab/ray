@@ -75,6 +75,7 @@ class TaskPoolMapOperator(MapOperator):
         }
 
         self._map_task = cached_remote_fn(_map_task, **ray_remote_static_args)
+        self._data_context_ref = ray.put(data_context)
 
     def _add_bundled_input(self, bundle: RefBundle):
         # Submit the task as a normal Ray task.
@@ -97,7 +98,7 @@ class TaskPoolMapOperator(MapOperator):
                 2 * self.data_context._max_num_blocks_in_streaming_gen_buffer
             )
 
-        data_context = self.data_context
+        data_context = self._data_context_ref
 
         gen = self._map_task.options(**dynamic_ray_remote_args).remote(
             self._map_transformer_ref,
