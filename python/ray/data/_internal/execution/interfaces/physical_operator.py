@@ -103,7 +103,7 @@ class DataOpTask(OpTask):
         while max_bytes_to_read is None or bytes_read < max_bytes_to_read:
             try:
                 block_ref = self._streaming_gen._next_sync(0)
-                logging.info(f"Data Task {self} object at {block_ref}")
+                # logging.info(f"Data Task {self} object at {block_ref}")
                 if block_ref.is_nil():
                     # The generator currently doesn't have new output.
                     # And it's not stopped yet.

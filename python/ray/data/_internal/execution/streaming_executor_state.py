@@ -457,7 +457,7 @@ def process_completed_tasks(
     # Process completed Ray tasks and notify operators.
     num_errored_blocks = 0
     if active_tasks:
-        logging.info(f"[Before ray.wait] Active tasks: {len(active_tasks)}, cpu usage: {resource_manager._cpu_usage}")
+        # logging.info(f"[Before ray.wait] Active tasks: {len(active_tasks)}, cpu usage: {resource_manager._cpu_usage}")
         # for ref, (state, task) in active_tasks.items():
         #     logging.info(f"Active task from operater {state.op.name}")
         #     logging.info(f"Task: {task}")
@@ -470,7 +470,7 @@ def process_completed_tasks(
             fetch_local=False,
             timeout=0.01,
         )
-        logging.info(f"[After ray.wait] Ready tasks: {len(ready)}, Active tasks: {len(active_tasks)}, cpu usage: {resource_manager._cpu_usage}")
+        # logging.info(f"[After ray.wait] Ready tasks: {len(ready)}, Active tasks: {len(active_tasks)}, cpu usage: {resource_manager._cpu_usage}")
         # Organize tasks by the operator they belong to, and sort them by task index.
         # So that we'll process them in a deterministic order.
         # This is because OpResourceAllocator may limit the number of blocks to read
@@ -559,10 +559,10 @@ def process_completed_tasks(
                     assert isinstance(task, MetadataOpTask)
                     task.on_task_finished()
                 if task.get_task_finished():
-                    if isinstance(task, DataOpTask):
-                        logging.info(f"Data Task {task.task_index()} finished: {task.get_task_time()}")
-                    else:
-                        logging.info(f"Metadata Task {task.task_index()} finished: {task.get_task_time()}")
+                    # if isinstance(task, DataOpTask):
+                    #     logging.info(f"Data Task {task.task_index()} finished: {task.get_task_time()}")
+                    # else:
+                    #     logging.info(f"Metadata Task {task.task_index()} finished: {task.get_task_time()}")
                     resource_manager._mem_usage -= partition_size
                     resource_manager._cpu_usage -= 1
 
@@ -732,6 +732,6 @@ def select_operator_to_run(
     else:
         resource_manager._total_tasks += 1
     
-    logging.info(f"Selected op: {selected_op}, mem usage: {resource_manager._mem_usage}, cpu usage: {resource_manager._cpu_usage}, total tasks: {resource_manager._total_tasks}")
+    # logging.info(f"Selected op: {selected_op}, mem usage: {resource_manager._mem_usage}, cpu usage: {resource_manager._cpu_usage}, total tasks: {resource_manager._total_tasks}")
     
     return selected_op
