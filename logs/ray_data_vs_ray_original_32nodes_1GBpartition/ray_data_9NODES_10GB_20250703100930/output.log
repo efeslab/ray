@@ -1,0 +1,178 @@
+2025-07-03 10:09:31,322	INFO worker.py:1660 -- Connecting to existing Ray cluster at address: 172.31.65.195:6379...
+2025-07-03 10:09:31,331	INFO worker.py:1843 -- Connected to Ray cluster. View the dashboard at [1m[32m172.31.65.195:8265 [39m[22m
+[2025-07-03 10:09:31,333 I 2383179 2383179] logging.cc:298: Set ray log level from environment variable RAY_BACKEND_LOG_LEVEL to -1
+2025-07-03 10:09:31,948	INFO streaming_executor.py:108 -- Starting execution of Dataset. Full logs are in /home/ec2-user/ray_temp/session_2025-07-03_10-08-36_057039_2382741/logs/ray-data
+2025-07-03 10:09:31,948	INFO streaming_executor.py:109 -- Execution plan of Dataset: InputDataBuffer[Input] -> TaskPoolMapOperator[ReadRange]
+Running 0: 0.00 row [00:00, ? row/s]
+- ReadRange 1: 0.00 row [00:00, ? row/s][ARunning Dataset. Active & requested resources: 64/64 CPU, 128.0GB/67.5GB object store: : 0.00 row [00:00, ? row/s]Running Dataset. Active & requested resources: 64/64 CPU, 128.0GB/67.5GB object store: : 0.00 row [00:00, ? row/s]
+- ReadRange: Tasks: 64; Queued blocks: 137; Resources: 64.0 CPU, 128.0GB object store: : 0.00 row [00:01, ? row/s][A
+- ReadRange: Tasks: 64; Queued blocks: 137; Resources: 64.0 CPU, 128.0GB object store: : 0.00 row [00:01, ? row/s][ARunning Dataset. Active & requested resources: 62/64 CPU, 25.9GB/67.5GB object store: : 0.00 row [00:02, ? row/s] Running Dataset. Active & requested resources: 62/64 CPU, 25.9GB/67.5GB object store:   0%|          | 0.00/10.5k [00:02<?, ? row/s]Running Dataset. Active & requested resources: 62/64 CPU, 25.9GB/67.5GB object store:  20%|██        | 2.14k/10.5k [00:02<00:07, 1.07k row/s]Running Dataset. Active & requested resources: 62/64 CPU, 25.9GB/67.5GB object store:  20%|██        | 2.14k/10.5k [00:02<00:07, 1.07k row/s]
+- ReadRange: Tasks: 64; Queued blocks: 76; Resources: 64.0 CPU, 25.5GB object store: : 0.00 row [00:02, ? row/s]  [A
+- ReadRange: Tasks: 64; Queued blocks: 76; Resources: 64.0 CPU, 25.5GB object store:   0%|          | 0.00/10.3k [00:02<?, ? row/s][A
+- ReadRange: Tasks: 64; Queued blocks: 76; Resources: 64.0 CPU, 25.5GB object store:  31%|███       | 3.16k/10.3k [00:02<00:04, 1.57k row/s][A
+- ReadRange: Tasks: 64; Queued blocks: 76; Resources: 64.0 CPU, 25.5GB object store:  31%|███       | 3.16k/10.3k [00:02<00:04, 1.57k row/s][ARunning Dataset. Active & requested resources: 53/64 CPU, 21.5GB/67.5GB object store:  20%|██        | 2.14k/10.5k [00:03<00:07, 1.07k row/s]Running Dataset. Active & requested resources: 53/64 CPU, 21.5GB/67.5GB object store:  21%|██        | 2.14k/10.3k [00:03<00:07, 1.07k row/s]Running Dataset. Active & requested resources: 53/64 CPU, 21.5GB/67.5GB object store:  73%|███████▎  | 7.50k/10.3k [00:03<00:00, 2.85k row/s]Running Dataset. Active & requested resources: 53/64 CPU, 21.5GB/67.5GB object store:  73%|███████▎  | 7.50k/10.3k [00:03<00:00, 2.85k row/s]
+- ReadRange: Tasks: 32; Queued blocks: 0; Resources: 32.0 CPU, 12.8GB object store:  31%|███       | 3.16k/10.3k [00:03<00:04, 1.57k row/s] [A
+- ReadRange: Tasks: 32; Queued blocks: 0; Resources: 32.0 CPU, 12.8GB object store:  31%|███       | 3.16k/10.3k [00:03<00:04, 1.57k row/s][A
+- ReadRange: Tasks: 32; Queued blocks: 0; Resources: 32.0 CPU, 12.8GB object store:  84%|████████▎ | 8.62k/10.3k [00:03<00:00, 3.18k row/s][A
+- ReadRange: Tasks: 32; Queued blocks: 0; Resources: 32.0 CPU, 12.8GB object store:  84%|████████▎ | 8.62k/10.3k [00:03<00:00, 3.18k row/s][A✔️  Dataset execution finished in 3.50 seconds:  73%|███████▎  | 7.50k/10.3k [00:03<00:00, 2.85k row/s]                                      ✔️  Dataset execution finished in 3.50 seconds:  73%|███████▎  | 7.50k/10.2k [00:03<00:00, 2.85k row/s]✔️  Dataset execution finished in 3.50 seconds: 100%|██████████| 10.2k/10.2k [00:03<00:00, 3.47k row/s]✔️  Dataset execution finished in 3.50 seconds: 100%|██████████| 10.2k/10.2k [00:03<00:00, 3.47k row/s]                                                                                                       
+                                                                                                                                           [A✔️  Dataset execution finished in 3.50 seconds: 100%|██████████| 10.2k/10.2k [00:03<00:00, 2.93k row/s]
+
+- ReadRange: Tasks: 32; Queued blocks: 0; Resources: 32.0 CPU, 12.8GB object store:  84%|████████▎ | 8.62k/10.3k [00:03<00:00, 3.18k row/s][A
+- ReadRange: Tasks: 0; Queued blocks: 0; Resources: 0.0 CPU, 0.0B object store:  84%|████████▎ | 8.62k/10.3k [00:03<00:00, 3.18k row/s]    [A
+- ReadRange: Tasks: 0; Queued blocks: 0; Resources: 0.0 CPU, 0.0B object store:  84%|████████▍ | 8.62k/10.2k [00:03<00:00, 3.18k row/s][A
+- ReadRange: Tasks: 0; Queued blocks: 0; Resources: 0.0 CPU, 0.0B object store: 100%|██████████| 10.2k/10.2k [00:03<00:00, 3.49k row/s][A
+- ReadRange: Tasks: 0; Queued blocks: 0; Resources: 0.0 CPU, 0.0B object store: 100%|██████████| 10.2k/10.2k [00:03<00:00, 3.49k row/s][A
+                                                                                                                                       [A- ReadRange: Tasks: 0; Queued blocks: 0; Resources: 0.0 CPU, 0.0B object store: 100%|██████████| 10.2k/10.2k [00:03<00:00, 3.07k row/s]
+2025-07-03 10:09:35,520	INFO streaming_executor.py:108 -- Starting execution of Dataset. Full logs are in /home/ec2-user/ray_temp/session_2025-07-03_10-08-36_057039_2382741/logs/ray-data
+2025-07-03 10:09:35,520	INFO streaming_executor.py:109 -- Execution plan of Dataset: InputDataBuffer[Input] -> TaskPoolMapOperator[ReadRange]
+Running 0: 0.00 row [00:00, ? row/s]
+- ReadRange 1: 0.00 row [00:00, ? row/s][ARunning Dataset. Active & requested resources: 64/64 CPU, 25.5GB/67.5GB object store: : 0.00 row [00:01, ? row/s]Running Dataset. Active & requested resources: 64/64 CPU, 25.5GB/67.5GB object store:   0%|          | 0.00/10.3k [00:01<?, ? row/s]Running Dataset. Active & requested resources: 64/64 CPU, 25.5GB/67.5GB object store:  42%|████▏     | 4.28k/10.3k [00:01<00:01, 4.24k row/s]Running Dataset. Active & requested resources: 64/64 CPU, 25.5GB/67.5GB object store:  42%|████▏     | 4.28k/10.3k [00:01<00:01, 4.24k row/s]
+- ReadRange: Tasks: 64; Queued blocks: 27; Resources: 64.0 CPU, 26.7GB object store: : 0.00 row [00:01, ? row/s][A
+- ReadRange: Tasks: 64; Queued blocks: 27; Resources: 64.0 CPU, 26.7GB object store:   0%|          | 0.00/10.3k [00:01<?, ? row/s][A
+- ReadRange: Tasks: 64; Queued blocks: 27; Resources: 64.0 CPU, 26.7GB object store:  55%|█████▌    | 5.71k/10.3k [00:01<00:00, 5.71k row/s][A
+- ReadRange: Tasks: 64; Queued blocks: 27; Resources: 64.0 CPU, 26.7GB object store:  55%|█████▌    | 5.71k/10.3k [00:01<00:00, 5.71k row/s][A✔️  Dataset execution finished in 1.60 seconds:  42%|████▏     | 4.28k/10.3k [00:01<00:01, 4.24k row/s]                                      ✔️  Dataset execution finished in 1.60 seconds:  42%|████▏     | 4.28k/10.2k [00:01<00:01, 4.24k row/s]✔️  Dataset execution finished in 1.60 seconds: 100%|██████████| 10.2k/10.2k [00:01<00:00, 6.92k row/s]✔️  Dataset execution finished in 1.60 seconds: 100%|██████████| 10.2k/10.2k [00:01<00:00, 6.92k row/s]                                                                                                       
+                                                                                                                                            [A✔️  Dataset execution finished in 1.60 seconds: 100%|██████████| 10.2k/10.2k [00:01<00:00, 6.41k row/s]
+
+- ReadRange: Tasks: 64; Queued blocks: 27; Resources: 64.0 CPU, 26.7GB object store:  55%|█████▌    | 5.71k/10.3k [00:01<00:00, 5.71k row/s][A
+- ReadRange: Tasks: 0; Queued blocks: 0; Resources: 0.0 CPU, 816.0MB object store:  55%|█████▌    | 5.71k/10.3k [00:01<00:00, 5.71k row/s]  [A
+- ReadRange: Tasks: 0; Queued blocks: 0; Resources: 0.0 CPU, 816.0MB object store:  56%|█████▌    | 5.71k/10.2k [00:01<00:00, 5.71k row/s][A
+- ReadRange: Tasks: 0; Queued blocks: 0; Resources: 0.0 CPU, 816.0MB object store: 100%|██████████| 10.2k/10.2k [00:01<00:00, 7.55k row/s][A
+- ReadRange: Tasks: 0; Queued blocks: 0; Resources: 0.0 CPU, 816.0MB object store: 100%|██████████| 10.2k/10.2k [00:01<00:00, 7.55k row/s][A
+                                                                                                                                          [A- ReadRange: Tasks: 0; Queued blocks: 0; Resources: 0.0 CPU, 816.0MB object store: 100%|██████████| 10.2k/10.2k [00:01<00:00, 7.16k row/s]
+2025-07-03 10:09:37,176	INFO streaming_executor.py:108 -- Starting execution of Dataset. Full logs are in /home/ec2-user/ray_temp/session_2025-07-03_10-08-36_057039_2382741/logs/ray-data
+2025-07-03 10:09:37,176	INFO streaming_executor.py:109 -- Execution plan of Dataset: InputDataBuffer[Input] -> TaskPoolMapOperator[ReadRange]
+Running 0: 0.00 row [00:00, ? row/s]
+- ReadRange 1: 0.00 row [00:00, ? row/s][ARunning Dataset. Active & requested resources: 64/64 CPU, 26.3GB/67.5GB object store: : 0.00 row [00:01, ? row/s]Running Dataset. Active & requested resources: 64/64 CPU, 26.3GB/67.5GB object store:   0%|          | 0.00/10.3k [00:01<?, ? row/s]Running Dataset. Active & requested resources: 64/64 CPU, 26.3GB/67.5GB object store:  61%|██████    | 6.27k/10.3k [00:01<00:00, 6.22k row/s]Running Dataset. Active & requested resources: 64/64 CPU, 26.3GB/67.5GB object store:  61%|██████    | 6.27k/10.3k [00:01<00:00, 6.22k row/s]
+- ReadRange: Tasks: 53; Queued blocks: 0; Resources: 53.0 CPU, 22.3GB object store: : 0.00 row [00:01, ? row/s][A
+- ReadRange: Tasks: 53; Queued blocks: 0; Resources: 53.0 CPU, 22.3GB object store:   0%|          | 0.00/10.3k [00:01<?, ? row/s][A
+- ReadRange: Tasks: 53; Queued blocks: 0; Resources: 53.0 CPU, 22.3GB object store:  75%|███████▌  | 7.70k/10.3k [00:01<00:00, 7.66k row/s][A
+- ReadRange: Tasks: 53; Queued blocks: 0; Resources: 53.0 CPU, 22.3GB object store:  75%|███████▌  | 7.70k/10.3k [00:01<00:00, 7.66k row/s][A✔️  Dataset execution finished in 1.41 seconds:  61%|██████    | 6.27k/10.3k [00:01<00:00, 6.22k row/s]                                      ✔️  Dataset execution finished in 1.41 seconds:  61%|██████▏   | 6.27k/10.2k [00:01<00:00, 6.22k row/s]✔️  Dataset execution finished in 1.41 seconds: 100%|██████████| 10.2k/10.2k [00:01<00:00, 7.56k row/s]✔️  Dataset execution finished in 1.41 seconds: 100%|██████████| 10.2k/10.2k [00:01<00:00, 7.56k row/s]                                                                                                       
+                                                                                                                                           [A✔️  Dataset execution finished in 1.41 seconds: 100%|██████████| 10.2k/10.2k [00:01<00:00, 7.27k row/s]
+
+- ReadRange: Tasks: 53; Queued blocks: 0; Resources: 53.0 CPU, 22.3GB object store:  75%|███████▌  | 7.70k/10.3k [00:01<00:00, 7.66k row/s][A
+- ReadRange: Tasks: 0; Queued blocks: 0; Resources: 0.0 CPU, 1.2GB object store:  75%|███████▌  | 7.70k/10.3k [00:01<00:00, 7.66k row/s]   [A
+- ReadRange: Tasks: 0; Queued blocks: 0; Resources: 0.0 CPU, 1.2GB object store:  75%|███████▌  | 7.70k/10.2k [00:01<00:00, 7.66k row/s][A
+- ReadRange: Tasks: 0; Queued blocks: 0; Resources: 0.0 CPU, 1.2GB object store: 100%|██████████| 10.2k/10.2k [00:01<00:00, 8.46k row/s][A
+- ReadRange: Tasks: 0; Queued blocks: 0; Resources: 0.0 CPU, 1.2GB object store: 100%|██████████| 10.2k/10.2k [00:01<00:00, 8.46k row/s][A
+                                                                                                                                        [A- ReadRange: Tasks: 0; Queued blocks: 0; Resources: 0.0 CPU, 1.2GB object store: 100%|██████████| 10.2k/10.2k [00:01<00:00, 8.26k row/s]
+2025-07-03 10:09:38,642	INFO streaming_executor.py:108 -- Starting execution of Dataset. Full logs are in /home/ec2-user/ray_temp/session_2025-07-03_10-08-36_057039_2382741/logs/ray-data
+2025-07-03 10:09:38,642	INFO streaming_executor.py:109 -- Execution plan of Dataset: InputDataBuffer[Input] -> TaskPoolMapOperator[ReadRange]
+Running 0: 0.00 row [00:00, ? row/s]
+- ReadRange 1: 0.00 row [00:00, ? row/s][ARunning Dataset. Active & requested resources: 63/64 CPU, 25.5GB/67.5GB object store: : 0.00 row [00:01, ? row/s]Running Dataset. Active & requested resources: 63/64 CPU, 25.5GB/67.5GB object store:   0%|          | 0.00/10.3k [00:01<?, ? row/s]Running Dataset. Active & requested resources: 63/64 CPU, 25.5GB/67.5GB object store:  58%|█████▊    | 5.92k/10.3k [00:01<00:00, 5.87k row/s]Running Dataset. Active & requested resources: 63/64 CPU, 25.5GB/67.5GB object store:  58%|█████▊    | 5.92k/10.3k [00:01<00:00, 5.87k row/s]
+- ReadRange: Tasks: 57; Queued blocks: 0; Resources: 57.0 CPU, 24.3GB object store: : 0.00 row [00:01, ? row/s][A
+- ReadRange: Tasks: 57; Queued blocks: 0; Resources: 57.0 CPU, 24.3GB object store:   0%|          | 0.00/10.3k [00:01<?, ? row/s][A
+- ReadRange: Tasks: 57; Queued blocks: 0; Resources: 57.0 CPU, 24.3GB object store:  72%|███████▏  | 7.45k/10.3k [00:01<00:00, 7.41k row/s][A
+- ReadRange: Tasks: 57; Queued blocks: 0; Resources: 57.0 CPU, 24.3GB object store:  72%|███████▏  | 7.45k/10.3k [00:01<00:00, 7.41k row/s][A✔️  Dataset execution finished in 1.41 seconds:  58%|█████▊    | 5.92k/10.3k [00:01<00:00, 5.87k row/s]                                      ✔️  Dataset execution finished in 1.41 seconds:  58%|█████▊    | 5.92k/10.2k [00:01<00:00, 5.87k row/s]✔️  Dataset execution finished in 1.41 seconds: 100%|██████████| 10.2k/10.2k [00:01<00:00, 7.64k row/s]✔️  Dataset execution finished in 1.41 seconds: 100%|██████████| 10.2k/10.2k [00:01<00:00, 7.64k row/s]                                                                                                       
+                                                                                                                                           [A✔️  Dataset execution finished in 1.41 seconds: 100%|██████████| 10.2k/10.2k [00:01<00:00, 7.26k row/s]
+
+- ReadRange: Tasks: 57; Queued blocks: 0; Resources: 57.0 CPU, 24.3GB object store:  72%|███████▏  | 7.45k/10.3k [00:01<00:00, 7.41k row/s][A
+- ReadRange: Tasks: 0; Queued blocks: 0; Resources: 0.0 CPU, 408.0MB object store:  72%|███████▏  | 7.45k/10.3k [00:01<00:00, 7.41k row/s] [A
+- ReadRange: Tasks: 0; Queued blocks: 0; Resources: 0.0 CPU, 408.0MB object store:  73%|███████▎  | 7.45k/10.2k [00:01<00:00, 7.41k row/s][A
+- ReadRange: Tasks: 0; Queued blocks: 0; Resources: 0.0 CPU, 408.0MB object store: 100%|██████████| 10.2k/10.2k [00:01<00:00, 8.52k row/s][A
+- ReadRange: Tasks: 0; Queued blocks: 0; Resources: 0.0 CPU, 408.0MB object store: 100%|██████████| 10.2k/10.2k [00:01<00:00, 8.52k row/s][A
+                                                                                                                                          [A- ReadRange: Tasks: 0; Queued blocks: 0; Resources: 0.0 CPU, 408.0MB object store: 100%|██████████| 10.2k/10.2k [00:01<00:00, 8.25k row/s]
+2025-07-03 10:09:40,112	INFO streaming_executor.py:108 -- Starting execution of Dataset. Full logs are in /home/ec2-user/ray_temp/session_2025-07-03_10-08-36_057039_2382741/logs/ray-data
+2025-07-03 10:09:40,112	INFO streaming_executor.py:109 -- Execution plan of Dataset: InputDataBuffer[Input] -> TaskPoolMapOperator[ReadRange]
+Running 0: 0.00 row [00:00, ? row/s]
+- ReadRange 1: 0.00 row [00:00, ? row/s][ARunning Dataset. Active & requested resources: 63/64 CPU, 25.9GB/67.5GB object store: : 0.00 row [00:01, ? row/s]Running Dataset. Active & requested resources: 63/64 CPU, 25.9GB/67.5GB object store:   0%|          | 0.00/10.3k [00:01<?, ? row/s]Running Dataset. Active & requested resources: 63/64 CPU, 25.9GB/67.5GB object store:  62%|██████▏   | 6.43k/10.3k [00:01<00:00, 6.37k row/s]Running Dataset. Active & requested resources: 63/64 CPU, 25.9GB/67.5GB object store:  62%|██████▏   | 6.43k/10.3k [00:01<00:00, 6.37k row/s]
+- ReadRange: Tasks: 49; Queued blocks: 0; Resources: 49.0 CPU, 20.7GB object store: : 0.00 row [00:01, ? row/s][A
+- ReadRange: Tasks: 49; Queued blocks: 0; Resources: 49.0 CPU, 20.7GB object store:   0%|          | 0.00/10.3k [00:01<?, ? row/s][A
+- ReadRange: Tasks: 49; Queued blocks: 0; Resources: 49.0 CPU, 20.7GB object store:  77%|███████▋  | 7.91k/10.3k [00:01<00:00, 7.89k row/s][A
+- ReadRange: Tasks: 49; Queued blocks: 0; Resources: 49.0 CPU, 20.7GB object store:  77%|███████▋  | 7.91k/10.3k [00:01<00:00, 7.89k row/s][A✔️  Dataset execution finished in 1.39 seconds:  62%|██████▏   | 6.43k/10.3k [00:01<00:00, 6.37k row/s]                                      ✔️  Dataset execution finished in 1.39 seconds:  63%|██████▎   | 6.43k/10.2k [00:01<00:00, 6.37k row/s]✔️  Dataset execution finished in 1.39 seconds: 100%|██████████| 10.2k/10.2k [00:01<00:00, 7.62k row/s]✔️  Dataset execution finished in 1.39 seconds: 100%|██████████| 10.2k/10.2k [00:01<00:00, 7.62k row/s]                                                                                                       
+                                                                                                                                           [A✔️  Dataset execution finished in 1.39 seconds: 100%|██████████| 10.2k/10.2k [00:01<00:00, 7.35k row/s]
+
+- ReadRange: Tasks: 49; Queued blocks: 0; Resources: 49.0 CPU, 20.7GB object store:  77%|███████▋  | 7.91k/10.3k [00:01<00:00, 7.89k row/s][A
+- ReadRange: Tasks: 0; Queued blocks: 0; Resources: 0.0 CPU, 408.0MB object store:  77%|███████▋  | 7.91k/10.3k [00:01<00:00, 7.89k row/s] [A
+- ReadRange: Tasks: 0; Queued blocks: 0; Resources: 0.0 CPU, 408.0MB object store:  77%|███████▋  | 7.91k/10.2k [00:01<00:00, 7.89k row/s][A
+- ReadRange: Tasks: 0; Queued blocks: 0; Resources: 0.0 CPU, 408.0MB object store: 100%|██████████| 10.2k/10.2k [00:01<00:00, 8.49k row/s][A
+- ReadRange: Tasks: 0; Queued blocks: 0; Resources: 0.0 CPU, 408.0MB object store: 100%|██████████| 10.2k/10.2k [00:01<00:00, 8.49k row/s][A
+                                                                                                                                          [A- ReadRange: Tasks: 0; Queued blocks: 0; Resources: 0.0 CPU, 408.0MB object store: 100%|██████████| 10.2k/10.2k [00:01<00:00, 8.34k row/s]
+2025-07-03 10:09:41.538017 - INFO - Start 0-th benchmark
+2025-07-03 10:09:41,565	INFO streaming_executor.py:108 -- Starting execution of Dataset. Full logs are in /home/ec2-user/ray_temp/session_2025-07-03_10-08-36_057039_2382741/logs/ray-data
+2025-07-03 10:09:41,565	INFO streaming_executor.py:109 -- Execution plan of Dataset: InputDataBuffer[Input] -> TaskPoolMapOperator[ReadRange]
+Running 0: 0.00 row [00:00, ? row/s]
+- ReadRange 1: 0.00 row [00:00, ? row/s][ARunning Dataset. Active & requested resources: 62/64 CPU, 25.9GB/67.5GB object store: : 0.00 row [00:01, ? row/s]Running Dataset. Active & requested resources: 62/64 CPU, 25.9GB/67.5GB object store:   0%|          | 0.00/10.4k [00:01<?, ? row/s]Running Dataset. Active & requested resources: 62/64 CPU, 25.9GB/67.5GB object store:  63%|██████▎   | 6.53k/10.4k [00:01<00:00, 6.49k row/s]Running Dataset. Active & requested resources: 62/64 CPU, 25.9GB/67.5GB object store:  63%|██████▎   | 6.53k/10.4k [00:01<00:00, 6.49k row/s]
+- ReadRange: Tasks: 36; Queued blocks: 0; Resources: 36.0 CPU, 14.3GB object store: : 0.00 row [00:01, ? row/s][A
+- ReadRange: Tasks: 36; Queued blocks: 0; Resources: 36.0 CPU, 14.3GB object store:   0%|          | 0.00/10.3k [00:01<?, ? row/s][A
+- ReadRange: Tasks: 36; Queued blocks: 0; Resources: 36.0 CPU, 14.3GB object store:  84%|████████▎ | 8.57k/10.3k [00:01<00:00, 8.55k row/s][A
+- ReadRange: Tasks: 36; Queued blocks: 0; Resources: 36.0 CPU, 14.3GB object store:  84%|████████▎ | 8.57k/10.3k [00:01<00:00, 8.55k row/s][A✔️  Dataset execution finished in 1.38 seconds:  63%|██████▎   | 6.53k/10.4k [00:01<00:00, 6.49k row/s]                                      ✔️  Dataset execution finished in 1.38 seconds:  64%|██████▍   | 6.53k/10.2k [00:01<00:00, 6.49k row/s]✔️  Dataset execution finished in 1.38 seconds: 100%|██████████| 10.2k/10.2k [00:01<00:00, 7.70k row/s]✔️  Dataset execution finished in 1.38 seconds: 100%|██████████| 10.2k/10.2k [00:01<00:00, 7.70k row/s]                                                                                                       
+                                                                                                                                           [A✔️  Dataset execution finished in 1.38 seconds: 100%|██████████| 10.2k/10.2k [00:01<00:00, 7.44k row/s]
+
+- ReadRange: Tasks: 36; Queued blocks: 0; Resources: 36.0 CPU, 14.3GB object store:  84%|████████▎ | 8.57k/10.3k [00:01<00:00, 8.55k row/s][A
+- ReadRange: Tasks: 0; Queued blocks: 0; Resources: 0.0 CPU, 0.0B object store:  84%|████████▎ | 8.57k/10.3k [00:01<00:00, 8.55k row/s]    [A
+- ReadRange: Tasks: 0; Queued blocks: 0; Resources: 0.0 CPU, 0.0B object store:  84%|████████▎ | 8.57k/10.2k [00:01<00:00, 8.55k row/s][A
+- ReadRange: Tasks: 0; Queued blocks: 0; Resources: 0.0 CPU, 0.0B object store: 100%|██████████| 10.2k/10.2k [00:01<00:00, 8.46k row/s][A
+- ReadRange: Tasks: 0; Queued blocks: 0; Resources: 0.0 CPU, 0.0B object store: 100%|██████████| 10.2k/10.2k [00:01<00:00, 8.46k row/s][A
+                                                                                                                                       [A- ReadRange: Tasks: 0; Queued blocks: 0; Resources: 0.0 CPU, 0.0B object store: 100%|██████████| 10.2k/10.2k [00:01<00:00, 8.48k row/s]
+2025-07-03 10:09:42.972087 - INFO - Start 1-th benchmark
+2025-07-03 10:09:42,999	INFO streaming_executor.py:108 -- Starting execution of Dataset. Full logs are in /home/ec2-user/ray_temp/session_2025-07-03_10-08-36_057039_2382741/logs/ray-data
+2025-07-03 10:09:42,999	INFO streaming_executor.py:109 -- Execution plan of Dataset: InputDataBuffer[Input] -> TaskPoolMapOperator[ReadRange]
+Running 0: 0.00 row [00:00, ? row/s]
+- ReadRange 1: 0.00 row [00:00, ? row/s][ARunning Dataset. Active & requested resources: 61/64 CPU, 25.1GB/67.5GB object store: : 0.00 row [00:01, ? row/s]Running Dataset. Active & requested resources: 61/64 CPU, 25.1GB/67.5GB object store:   0%|          | 0.00/10.3k [00:01<?, ? row/s]Running Dataset. Active & requested resources: 61/64 CPU, 25.1GB/67.5GB object store:  66%|██████▌   | 6.83k/10.3k [00:01<00:00, 6.81k row/s]Running Dataset. Active & requested resources: 61/64 CPU, 25.1GB/67.5GB object store:  66%|██████▌   | 6.83k/10.3k [00:01<00:00, 6.81k row/s]
+- ReadRange: Tasks: 40; Queued blocks: 0; Resources: 40.0 CPU, 17.1GB object store: : 0.00 row [00:01, ? row/s][A
+- ReadRange: Tasks: 40; Queued blocks: 0; Resources: 40.0 CPU, 17.1GB object store:   0%|          | 0.00/10.3k [00:01<?, ? row/s][A
+- ReadRange: Tasks: 40; Queued blocks: 0; Resources: 40.0 CPU, 17.1GB object store:  81%|████████  | 8.36k/10.3k [00:01<00:00, 8.29k row/s][A
+- ReadRange: Tasks: 40; Queued blocks: 0; Resources: 40.0 CPU, 17.1GB object store:  81%|████████  | 8.36k/10.3k [00:01<00:00, 8.29k row/s][A✔️  Dataset execution finished in 1.35 seconds:  66%|██████▌   | 6.83k/10.3k [00:01<00:00, 6.81k row/s]                                      ✔️  Dataset execution finished in 1.35 seconds:  67%|██████▋   | 6.83k/10.2k [00:01<00:00, 6.81k row/s]✔️  Dataset execution finished in 1.35 seconds: 100%|██████████| 10.2k/10.2k [00:01<00:00, 7.77k row/s]✔️  Dataset execution finished in 1.35 seconds: 100%|██████████| 10.2k/10.2k [00:01<00:00, 7.77k row/s]                                                                                                       
+                                                                                                                                           [A✔️  Dataset execution finished in 1.35 seconds: 100%|██████████| 10.2k/10.2k [00:01<00:00, 7.55k row/s]
+
+- ReadRange: Tasks: 40; Queued blocks: 0; Resources: 40.0 CPU, 17.1GB object store:  81%|████████  | 8.36k/10.3k [00:01<00:00, 8.29k row/s][A
+- ReadRange: Tasks: 0; Queued blocks: 0; Resources: 0.0 CPU, 2.0GB object store:  81%|████████  | 8.36k/10.3k [00:01<00:00, 8.29k row/s]   [A
+- ReadRange: Tasks: 0; Queued blocks: 0; Resources: 0.0 CPU, 2.0GB object store:  82%|████████▏ | 8.36k/10.2k [00:01<00:00, 8.29k row/s][A
+- ReadRange: Tasks: 0; Queued blocks: 0; Resources: 0.0 CPU, 2.0GB object store: 100%|██████████| 10.2k/10.2k [00:01<00:00, 8.73k row/s][A
+- ReadRange: Tasks: 0; Queued blocks: 0; Resources: 0.0 CPU, 2.0GB object store: 100%|██████████| 10.2k/10.2k [00:01<00:00, 8.73k row/s][A
+                                                                                                                                        [A- ReadRange: Tasks: 0; Queued blocks: 0; Resources: 0.0 CPU, 2.0GB object store: 100%|██████████| 10.2k/10.2k [00:01<00:00, 8.62k row/s]
+2025-07-03 10:09:44.387091 - INFO - Start 2-th benchmark
+2025-07-03 10:09:44,414	INFO streaming_executor.py:108 -- Starting execution of Dataset. Full logs are in /home/ec2-user/ray_temp/session_2025-07-03_10-08-36_057039_2382741/logs/ray-data
+2025-07-03 10:09:44,414	INFO streaming_executor.py:109 -- Execution plan of Dataset: InputDataBuffer[Input] -> TaskPoolMapOperator[ReadRange]
+Running 0: 0.00 row [00:00, ? row/s]
+- ReadRange 1: 0.00 row [00:00, ? row/s][ARunning Dataset. Active & requested resources: 64/64 CPU, 26.7GB/67.5GB object store: : 0.00 row [00:01, ? row/s]Running Dataset. Active & requested resources: 64/64 CPU, 26.7GB/67.5GB object store:   0%|          | 0.00/10.3k [00:01<?, ? row/s]Running Dataset. Active & requested resources: 64/64 CPU, 26.7GB/67.5GB object store:  61%|██████    | 6.27k/10.3k [00:01<00:00, 6.09k row/s]Running Dataset. Active & requested resources: 64/64 CPU, 26.7GB/67.5GB object store:  61%|██████    | 6.27k/10.3k [00:01<00:00, 6.09k row/s]
+- ReadRange: Tasks: 40; Queued blocks: 0; Resources: 40.0 CPU, 16.7GB object store: : 0.00 row [00:01, ? row/s][A
+- ReadRange: Tasks: 40; Queued blocks: 0; Resources: 40.0 CPU, 16.7GB object store:   0%|          | 0.00/10.3k [00:01<?, ? row/s][A
+- ReadRange: Tasks: 40; Queued blocks: 0; Resources: 40.0 CPU, 16.7GB object store:  81%|████████  | 8.31k/10.3k [00:01<00:00, 8.30k row/s][A
+- ReadRange: Tasks: 40; Queued blocks: 0; Resources: 40.0 CPU, 16.7GB object store:  81%|████████  | 8.31k/10.3k [00:01<00:00, 8.30k row/s][A✔️  Dataset execution finished in 1.32 seconds:  61%|██████    | 6.27k/10.3k [00:01<00:00, 6.09k row/s]                                      ✔️  Dataset execution finished in 1.32 seconds:  61%|██████▏   | 6.27k/10.2k [00:01<00:00, 6.09k row/s]✔️  Dataset execution finished in 1.32 seconds: 100%|██████████| 10.2k/10.2k [00:01<00:00, 8.22k row/s]✔️  Dataset execution finished in 1.32 seconds: 100%|██████████| 10.2k/10.2k [00:01<00:00, 8.22k row/s]                                                                                                       
+                                                                                                                                           [A✔️  Dataset execution finished in 1.32 seconds: 100%|██████████| 10.2k/10.2k [00:01<00:00, 7.72k row/s]
+
+- ReadRange: Tasks: 40; Queued blocks: 0; Resources: 40.0 CPU, 16.7GB object store:  81%|████████  | 8.31k/10.3k [00:01<00:00, 8.30k row/s][A
+- ReadRange: Tasks: 0; Queued blocks: 0; Resources: 0.0 CPU, 408.0MB object store:  81%|████████  | 8.31k/10.3k [00:01<00:00, 8.30k row/s] [A
+- ReadRange: Tasks: 0; Queued blocks: 0; Resources: 0.0 CPU, 408.0MB object store:  81%|████████  | 8.31k/10.2k [00:01<00:00, 8.30k row/s][A
+- ReadRange: Tasks: 0; Queued blocks: 0; Resources: 0.0 CPU, 408.0MB object store: 100%|██████████| 10.2k/10.2k [00:01<00:00, 9.05k row/s][A
+- ReadRange: Tasks: 0; Queued blocks: 0; Resources: 0.0 CPU, 408.0MB object store: 100%|██████████| 10.2k/10.2k [00:01<00:00, 9.05k row/s][A
+                                                                                                                                          [A- ReadRange: Tasks: 0; Queued blocks: 0; Resources: 0.0 CPU, 408.0MB object store: 100%|██████████| 10.2k/10.2k [00:01<00:00, 8.86k row/s]
+2025-07-03 10:09:45.772568 - INFO - Start 3-th benchmark
+2025-07-03 10:09:45,799	INFO streaming_executor.py:108 -- Starting execution of Dataset. Full logs are in /home/ec2-user/ray_temp/session_2025-07-03_10-08-36_057039_2382741/logs/ray-data
+2025-07-03 10:09:45,800	INFO streaming_executor.py:109 -- Execution plan of Dataset: InputDataBuffer[Input] -> TaskPoolMapOperator[ReadRange]
+Running 0: 0.00 row [00:00, ? row/s]
+- ReadRange 1: 0.00 row [00:00, ? row/s][ARunning Dataset. Active & requested resources: 60/64 CPU, 26.3GB/67.5GB object store: : 0.00 row [00:01, ? row/s]Running Dataset. Active & requested resources: 60/64 CPU, 26.3GB/67.5GB object store:   0%|          | 0.00/10.3k [00:01<?, ? row/s]Running Dataset. Active & requested resources: 60/64 CPU, 26.3GB/67.5GB object store:  68%|██████▊   | 7.04k/10.3k [00:01<00:00, 7.00k row/s]Running Dataset. Active & requested resources: 60/64 CPU, 26.3GB/67.5GB object store:  68%|██████▊   | 7.04k/10.3k [00:01<00:00, 7.00k row/s]
+- ReadRange: Tasks: 27; Queued blocks: 0; Resources: 27.0 CPU, 11.9GB object store: : 0.00 row [00:01, ? row/s][A
+- ReadRange: Tasks: 27; Queued blocks: 0; Resources: 27.0 CPU, 11.9GB object store:   0%|          | 0.00/10.3k [00:01<?, ? row/s][A
+- ReadRange: Tasks: 27; Queued blocks: 0; Resources: 27.0 CPU, 11.9GB object store:  88%|████████▊ | 9.02k/10.3k [00:01<00:00, 9.01k row/s][A
+- ReadRange: Tasks: 27; Queued blocks: 0; Resources: 27.0 CPU, 11.9GB object store:  88%|████████▊ | 9.02k/10.3k [00:01<00:00, 9.01k row/s][A✔️  Dataset execution finished in 1.28 seconds:  68%|██████▊   | 7.04k/10.3k [00:01<00:00, 7.00k row/s]                                      ✔️  Dataset execution finished in 1.28 seconds:  69%|██████▊   | 7.04k/10.2k [00:01<00:00, 7.00k row/s]✔️  Dataset execution finished in 1.28 seconds: 100%|██████████| 10.2k/10.2k [00:01<00:00, 8.30k row/s]✔️  Dataset execution finished in 1.28 seconds: 100%|██████████| 10.2k/10.2k [00:01<00:00, 8.30k row/s]                                                                                                       
+                                                                                                                                           [A✔️  Dataset execution finished in 1.28 seconds: 100%|██████████| 10.2k/10.2k [00:01<00:00, 7.99k row/s]
+
+- ReadRange: Tasks: 27; Queued blocks: 0; Resources: 27.0 CPU, 11.9GB object store:  88%|████████▊ | 9.02k/10.3k [00:01<00:00, 9.01k row/s][A
+- ReadRange: Tasks: 0; Queued blocks: 0; Resources: 0.0 CPU, 1.6GB object store:  88%|████████▊ | 9.02k/10.3k [00:01<00:00, 9.01k row/s]   [A
+- ReadRange: Tasks: 0; Queued blocks: 0; Resources: 0.0 CPU, 1.6GB object store:  88%|████████▊ | 9.02k/10.2k [00:01<00:00, 9.01k row/s][A
+- ReadRange: Tasks: 0; Queued blocks: 0; Resources: 0.0 CPU, 1.6GB object store: 100%|██████████| 10.2k/10.2k [00:01<00:00, 9.22k row/s][A
+- ReadRange: Tasks: 0; Queued blocks: 0; Resources: 0.0 CPU, 1.6GB object store: 100%|██████████| 10.2k/10.2k [00:01<00:00, 9.22k row/s][A
+                                                                                                                                        [A- ReadRange: Tasks: 0; Queued blocks: 0; Resources: 0.0 CPU, 1.6GB object store: 100%|██████████| 10.2k/10.2k [00:01<00:00, 9.16k row/s]
+2025-07-03 10:09:47.112700 - INFO - Start 4-th benchmark
+2025-07-03 10:09:47,140	INFO streaming_executor.py:108 -- Starting execution of Dataset. Full logs are in /home/ec2-user/ray_temp/session_2025-07-03_10-08-36_057039_2382741/logs/ray-data
+2025-07-03 10:09:47,140	INFO streaming_executor.py:109 -- Execution plan of Dataset: InputDataBuffer[Input] -> TaskPoolMapOperator[ReadRange]
+Running 0: 0.00 row [00:00, ? row/s]
+- ReadRange 1: 0.00 row [00:00, ? row/s][ARunning Dataset. Active & requested resources: 63/64 CPU, 25.5GB/67.5GB object store: : 0.00 row [00:01, ? row/s]Running Dataset. Active & requested resources: 63/64 CPU, 25.5GB/67.5GB object store:   0%|          | 0.00/10.3k [00:01<?, ? row/s]Running Dataset. Active & requested resources: 63/64 CPU, 25.5GB/67.5GB object store:  66%|██████▌   | 6.78k/10.3k [00:01<00:00, 6.74k row/s]Running Dataset. Active & requested resources: 63/64 CPU, 25.5GB/67.5GB object store:  66%|██████▌   | 6.78k/10.3k [00:01<00:00, 6.74k row/s]
+- ReadRange: Tasks: 27; Queued blocks: 0; Resources: 27.0 CPU, 10.8GB object store: : 0.00 row [00:01, ? row/s][A
+- ReadRange: Tasks: 27; Queued blocks: 0; Resources: 27.0 CPU, 10.8GB object store:   0%|          | 0.00/10.4k [00:01<?, ? row/s][A
+- ReadRange: Tasks: 27; Queued blocks: 0; Resources: 27.0 CPU, 10.8GB object store:  85%|████████▌ | 8.87k/10.4k [00:01<00:00, 8.83k row/s][A
+- ReadRange: Tasks: 27; Queued blocks: 0; Resources: 27.0 CPU, 10.8GB object store:  85%|████████▌ | 8.87k/10.4k [00:01<00:00, 8.83k row/s][A✔️  Dataset execution finished in 1.34 seconds:  66%|██████▌   | 6.78k/10.3k [00:01<00:00, 6.74k row/s]                                      ✔️  Dataset execution finished in 1.34 seconds:  66%|██████▌   | 6.78k/10.2k [00:01<00:00, 6.74k row/s]✔️  Dataset execution finished in 1.34 seconds: 100%|██████████| 10.2k/10.2k [00:01<00:00, 7.87k row/s]✔️  Dataset execution finished in 1.34 seconds: 100%|██████████| 10.2k/10.2k [00:01<00:00, 7.87k row/s]                                                                                                       
+                                                                                                                                           [A✔️  Dataset execution finished in 1.34 seconds: 100%|██████████| 10.2k/10.2k [00:01<00:00, 7.62k row/s]
+
+- ReadRange: Tasks: 27; Queued blocks: 0; Resources: 27.0 CPU, 10.8GB object store:  85%|████████▌ | 8.87k/10.4k [00:01<00:00, 8.83k row/s][A
+- ReadRange: Tasks: 0; Queued blocks: 0; Resources: 0.0 CPU, 408.0MB object store:  85%|████████▌ | 8.87k/10.4k [00:01<00:00, 8.83k row/s] [A
+- ReadRange: Tasks: 0; Queued blocks: 0; Resources: 0.0 CPU, 408.0MB object store:  87%|████████▋ | 8.87k/10.2k [00:01<00:00, 8.83k row/s][A
+- ReadRange: Tasks: 0; Queued blocks: 0; Resources: 0.0 CPU, 408.0MB object store: 100%|██████████| 10.2k/10.2k [00:01<00:00, 8.65k row/s][A
+- ReadRange: Tasks: 0; Queued blocks: 0; Resources: 0.0 CPU, 408.0MB object store: 100%|██████████| 10.2k/10.2k [00:01<00:00, 8.65k row/s][A
+                                                                                                                                          [A- ReadRange: Tasks: 0; Queued blocks: 0; Resources: 0.0 CPU, 408.0MB object store: 100%|██████████| 10.2k/10.2k [00:01<00:00, 8.69k row/s]
+[Ray Data]
+Total data size in GB: 80.0
+Total time taken in seconds: 1.3746763046074193
+Throughput in GB/s: 58.19551826991478

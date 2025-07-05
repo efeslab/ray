@@ -1,0 +1,7 @@
+2025-07-03 09:29:19,800	INFO worker.py:1660 -- Connecting to existing Ray cluster at address: 172.31.65.195:6379...
+2025-07-03 09:29:19,809	INFO worker.py:1843 -- Connected to Ray cluster. View the dashboard at [1m[32m172.31.65.195:8265 [39m[22m
+[2025-07-03 09:29:19,810 I 2377731 2377731] logging.cc:298: Set ray log level from environment variable RAY_BACKEND_LOG_LEVEL to -1
+[Ray Original]
+Total data size in GB: 10.0
+Total time taken in seconds: 1.0202083998010494
+Throughput in GB/s: 9.801918903971089
