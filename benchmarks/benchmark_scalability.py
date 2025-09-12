@@ -9,6 +9,18 @@ import logging
 from datetime import datetime
 from ray.data import DataContext
 
+from ray.util.placement_group import placement_group
+from ray.util.scheduling_strategies import PlacementGroupSchedulingStrategy
+
+def _create_pg(m: int, cpus_per_bundle: int):
+    # Reserve bundles across m distinct nodes.
+    base = {"CPU": float(cpus_per_bundle)}
+    bundles = [base.copy() for _ in range(m)]
+    pg = placement_group(bundles=bundles, strategy="STRICT_SPREAD")
+    ray.get(pg.ready())
+    return pg
+
+
 
 class MicrosecondFormatter(logging.Formatter):
     def formatTime(self, record, datefmt=None):
@@ -19,8 +31,7 @@ class MicrosecondFormatter(logging.Formatter):
             return dt.strftime('%Y-%m-%d %H:%M:%S.%f')
 
 
-def run_ray_data(output_dir, num_nodes, size):
-    num_nodes = max(num_nodes - 1, 1)
+def run_ray_data(output_dir, num_nodes, cpus_per_node, size):
     # 128 * size GB per node
     NUM_ITEMS = 128 * size * num_nodes
     ITEM_SHAPE = 1024 * 1024  # elements
@@ -35,21 +46,34 @@ def run_ray_data(output_dir, num_nodes, size):
     data_context.target_max_block_size = 1024 ** 3  # 1 GB
     ray.init("auto")
     
-    
+    # # Reserve m nodes via PG
+    # pg = _create_pg(num_nodes, cpus_per_node)
+    # sched = PlacementGroupSchedulingStrategy(pg)
+
+    # # Helper to run a no-op map inside the PG so execution stays within the PG
+    # def _in_pg(ds):
+    #     return ds.map_batches(
+    #         lambda b: b,
+    #         num_cpus=cpus_per_node,
+    #         scheduling_strategy=sched,
+    #     )
+        
     # warmup
     for i in range(5):
         ds = ray.data.range_tensor(NUM_ITEMS, shape=(ITEM_SHAPE,))
         # ds = ds.flat_map(lambda x: [], num_cpus=0.99)
+        # ds = _in_pg(ds)
         ds.materialize()
         # for batch in ds.iter_batches():
         #     continue
 
 
     total_time = 0
-    profile_time = 5
+    profile_time = 10
     for i in range(profile_time):
         logging.info(f"Start {i}-th benchmark") 
         ds = ray.data.range_tensor(NUM_ITEMS, shape=(ITEM_SHAPE,))
+        # ds = _in_pg(ds)
         # ds = ds.flat_map(lambda x: [], num_cpus=0.99)
         start_time = time.perf_counter()
         ds.materialize()
@@ -86,9 +110,20 @@ def ray_original_task():
     # return np.ones((1024, 1024), dtype=np.int64) * np.expand_dims(np.arange(0, 16), tuple(range(1, 1 + 2)))
     return np.ones((1024, 1024), dtype=np.int64) * np.expand_dims(np.arange(0, 128), tuple(range(1, 1 + 2)))
 
+@ray.remote
+def g_empty(_x):
+    # Empty consumer
+    return None
 
-def run_ray_original(output_dir, num_nodes, size):
-    num_nodes = max(num_nodes - 1, 1)
+@ray.remote
+def ray_original_task_streaming():
+    # Streaming generator that yields exactly ONE ~1 GB item
+    yield np.ones((1024, 1024), dtype=np.int64) * np.expand_dims(
+        np.arange(0, 128, dtype=np.int64), (1, 2)
+    )
+
+
+def run_ray_original(output_dir, num_nodes, cpus_per_node, size, mode):
     # 8 x size GB per node
     # NUM_WARMUP_ITEMS = 8 * size * num_nodes
     # NUM_ITEMS = 8 * size * num_nodes
@@ -101,9 +136,33 @@ def run_ray_original(output_dir, num_nodes, size):
 
     ray.init("auto")
 
+    # # Reserve m nodes via PG
+    # pg = _create_pg(num_nodes, cpus_per_node)
+    # sched = PlacementGroupSchedulingStrategy(pg)
+
+    # # Helper to run a no-op map inside the PG so execution stays within the PG
+    # def _in_pg(ds):
+    #     return ds.map_batches(
+    #         lambda b: b,
+    #         # Make sure the op actually consumes CPU so the bundle is used:
+    #         ray_remote_args={
+    #             "num_cpus": cpus_per_node,
+    #             "scheduling_strategy": sched,
+    #         },
+    #     )
+
     # Warm up workers
     for i in range(5):
-        warmup_tasks = [ray_original_task.remote() for _ in range(NUM_WARMUP_ITEMS)]
+        if mode == "ray_original":
+            f_refs = [ray_original_task.remote() for _ in range(NUM_WARMUP_ITEMS)]
+        elif mode == "ray_original_streaming":
+            f_refs = []
+            for _ in range(NUM_WARMUP_ITEMS):
+                gen = ray_original_task_streaming.remote()
+                f_refs.append(ray.get(next(gen)))
+        else:
+            raise ValueError(f"Unknown mode: {mode}")
+        warmup_tasks = [g_empty.remote(f_ref) for f_ref in f_refs]
         # ray.get(warmup_tasks)
         while warmup_tasks:
             ready_tasks, warmup_tasks = ray.wait(warmup_tasks, num_returns=1, fetch_local=False)
@@ -112,10 +171,19 @@ def run_ray_original(output_dir, num_nodes, size):
             # del ready_tasks
 
     total_time = 0
-    profile_time = 5
+    profile_time = 10
     for i in range(profile_time):
         start_time = time.perf_counter()
-        tasks = [ray_original_task.remote() for _ in range(NUM_ITEMS)]
+        if mode == "ray_original":
+            f_refs = [ray_original_task.remote() for _ in range(NUM_WARMUP_ITEMS)]
+        elif mode == "ray_original_streaming":
+            f_refs = []
+            for _ in range(NUM_WARMUP_ITEMS):
+                gen = ray_original_task_streaming.remote()
+                f_refs.append(ray.get(next(gen)))
+        else:
+            raise ValueError(f"Unknown mode: {mode}")
+        tasks = [g_empty.remote(f_ref) for f_ref in f_refs]
         # ray.get(tasks)
         while tasks:
             ready_tasks, tasks = ray.wait(tasks, num_returns=1, fetch_local=False)
@@ -141,8 +209,9 @@ def run_ray_original(output_dir, num_nodes, size):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Benchmark Ray Data vs Ray Original")
-    parser.add_argument("--mode", choices=["ray_data", "ray_original"], required=True, help="Which benchmark to run")
+    parser.add_argument("--mode", choices=["ray_data", "ray_original", "ray_original_streaming"], required=True, help="Which benchmark to run")
     parser.add_argument("--num_nodes", type=int, default=1, help="Number of nodes to use")
+    parser.add_argument("--cpus_per_node", type=int, default=8, help="CPU per node")
     parser.add_argument("--size", type=int, default=100, help="Size of the dataset in GB")
     parser.add_argument("--output_dir", type=str, default="")
     args = parser.parse_args()
@@ -165,6 +234,6 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, handlers=[handler])
 
     if args.mode == "ray_data":
-        run_ray_data(args.output_dir, args.num_nodes, args.size)
-    elif args.mode == "ray_original":
-        run_ray_original(args.output_dir, args.num_nodes, args.size)
+        run_ray_data(args.output_dir, args.num_nodes, args.cpus_per_node, args.size)
+    elif args.mode == "ray_original" or args.mode == "ray_original_streaming":
+        run_ray_original(args.output_dir, args.num_nodes, args.cpus_per_node, args.size, args.mode)
