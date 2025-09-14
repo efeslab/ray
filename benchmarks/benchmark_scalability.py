@@ -41,9 +41,9 @@ def run_ray_data(output_dir, num_nodes, cpus_per_node, size):
     data_context.op_resource_reservation_ratio = 0
     # data_context.execution_options.verbose_progress = True
     # data_context.override_object_store_memory_limit_fraction = 1
-    # data_context.target_max_block_size = 128 * 1024 ** 2  # 128 MB
+    data_context.target_max_block_size = 128 * 1024 ** 2  # 128 MB
     # data_context.target_max_block_size = 512 * 1024 ** 2  # 512 MB
-    data_context.target_max_block_size = 1024 ** 3  # 1 GB
+    # data_context.target_max_block_size = 1024 ** 3  # 1 GB
     ray.init("auto")
     
     # # Reserve m nodes via PG
@@ -107,8 +107,9 @@ def ray_original_task():
     # ray.put(np.ones((1024, 1024), dtype=np.int64) * np.expand_dims(np.arange(0, 128), tuple(range(1, 1 + 2))))
     # yield np.ones((1024, 1024), dtype=np.int64) * np.expand_dims(np.arange(0, 16), tuple(range(1, 1 + 2)))
     # return ray.put(np.ones((1024, 1024), dtype=np.int64) * np.expand_dims(np.arange(0, 16), tuple(range(1, 1 + 2))))
-    # return np.ones((1024, 1024), dtype=np.int64) * np.expand_dims(np.arange(0, 16), tuple(range(1, 1 + 2)))
-    return np.ones((1024, 1024), dtype=np.int64) * np.expand_dims(np.arange(0, 128), tuple(range(1, 1 + 2)))
+    return np.ones((1024, 1024), dtype=np.int64) * np.expand_dims(np.arange(0, 16), tuple(range(1, 1 + 2)))
+    # return np.ones((1024, 1024), dtype=np.int64) * np.expand_dims(np.arange(0, 64), tuple(range(1, 1 + 2)))
+    # return np.ones((1024, 1024), dtype=np.int64) * np.expand_dims(np.arange(0, 128), tuple(range(1, 1 + 2)))
 
 @ray.remote
 def g_empty(_x):
@@ -125,12 +126,12 @@ def ray_original_task_streaming():
 
 def run_ray_original(output_dir, num_nodes, cpus_per_node, size, mode):
     # 8 x size GB per node
-    # NUM_WARMUP_ITEMS = 8 * size * num_nodes
-    # NUM_ITEMS = 8 * size * num_nodes
+    NUM_WARMUP_ITEMS = 8 * size * num_nodes
+    NUM_ITEMS = 8 * size * num_nodes
     # NUM_WARMUP_ITEMS = 2 * size * num_nodes
     # NUM_ITEMS = 2 * size * num_nodes
-    NUM_WARMUP_ITEMS = 1 * size * num_nodes
-    NUM_ITEMS = 1 * size * num_nodes
+    # NUM_WARMUP_ITEMS = 1 * size * num_nodes
+    # NUM_ITEMS = 1 * size * num_nodes
     # ITEM_SHAPE = 1024 * 1024  # elements
     DTYPE_SIZE = 8  # bytes
 
@@ -173,6 +174,7 @@ def run_ray_original(output_dir, num_nodes, cpus_per_node, size, mode):
     total_time = 0
     profile_time = 10
     for i in range(profile_time):
+        logging.info(f"Start {i}-th benchmark")
         start_time = time.perf_counter()
         if mode == "ray_original":
             f_refs = [ray_original_task.remote() for _ in range(NUM_WARMUP_ITEMS)]
@@ -184,6 +186,7 @@ def run_ray_original(output_dir, num_nodes, cpus_per_node, size, mode):
         else:
             raise ValueError(f"Unknown mode: {mode}")
         tasks = [g_empty.remote(f_ref) for f_ref in f_refs]
+        del f_refs
         # ray.get(tasks)
         while tasks:
             ready_tasks, tasks = ray.wait(tasks, num_returns=1, fetch_local=False)
@@ -193,9 +196,9 @@ def run_ray_original(output_dir, num_nodes, cpus_per_node, size, mode):
         end_time = time.perf_counter()
         total_time += end_time - start_time
         # Each task handles approx 1 GB tensor
-    # total_data_size = NUM_ITEMS / 8  # GB
+    total_data_size = NUM_ITEMS / 8  # GB
     # total_data_size = NUM_ITEMS / 2
-    total_data_size = NUM_ITEMS
+    # total_data_size = NUM_ITEMS
         
     avg_time = total_time / profile_time
     print("[Ray Original]")
