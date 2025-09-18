@@ -61,7 +61,7 @@ def run_ray_data(output_dir, num_nodes, cpus_per_node, size):
     # warmup
     for i in range(5):
         ds = ray.data.range_tensor(NUM_ITEMS, shape=(ITEM_SHAPE,))
-        # ds = ds.flat_map(lambda x: [], num_cpus=0.99)
+        ds = ds.flat_map(lambda x: [], num_cpus=0.99)
         # ds = _in_pg(ds)
         ds.materialize()
         # for batch in ds.iter_batches():
@@ -74,7 +74,7 @@ def run_ray_data(output_dir, num_nodes, cpus_per_node, size):
         logging.info(f"Start {i}-th benchmark") 
         ds = ray.data.range_tensor(NUM_ITEMS, shape=(ITEM_SHAPE,))
         # ds = _in_pg(ds)
-        # ds = ds.flat_map(lambda x: [], num_cpus=0.99)
+        ds = ds.flat_map(lambda x: [], num_cpus=0.99)
         start_time = time.perf_counter()
         ds.materialize()
         end_time = time.perf_counter()
@@ -111,17 +111,43 @@ def ray_original_task():
     # return np.ones((1024, 1024), dtype=np.int64) * np.expand_dims(np.arange(0, 64), tuple(range(1, 1 + 2)))
     # return np.ones((1024, 1024), dtype=np.int64) * np.expand_dims(np.arange(0, 128), tuple(range(1, 1 + 2)))
 
+                                                                                                
 @ray.remote
 def g_empty(_x):
     # Empty consumer
     return None
 
 @ray.remote
-def ray_original_task_streaming():
-    # Streaming generator that yields exactly ONE ~1 GB item
-    yield np.ones((1024, 1024), dtype=np.int64) * np.expand_dims(
-        np.arange(0, 128, dtype=np.int64), (1, 2)
-    )
+def ray_original_task_streaming(num_partitions: int = 1):
+    # Streaming generator that yields one partiton size
+    # yield np.ones((1024, 1024), dtype=np.int64) * np.expand_dims(
+    #     np.arange(0, 128, dtype=np.int64), (1, 2)
+    # )
+    for _ in range(num_partitions):
+        yield np.ones((1024, 1024), dtype=np.int64) * np.expand_dims(np.arange(0, 16), tuple(range(1, 1 + 2)))
+
+# @ray.remote
+# def ray_original_task_streaming():
+#     # Streaming generator that yields one partiton size
+#     # yield np.ones((1024, 1024), dtype=np.int64) * np.expand_dims(
+#     #     np.arange(0, 128, dtype=np.int64), (1, 2)
+#     # )
+#     yield np.ones((1024, 1024), dtype=np.int64) * np.expand_dims(np.arange(0, 16), tuple(range(1, 1 + 2)))
+
+# @ray.remote
+# def streaming_orchestrator(num_items: int, max_inflight: int = 256):
+#     # Launch up to max_inflight tasks, then keep a sliding window full.
+#     pending = [ray_original_task.remote()
+#                for _ in range(min(num_items, max_inflight))]
+#     launched = len(pending)
+
+#     while pending:
+#         ready, pending = ray.wait(pending, num_returns=1, fetch_local=False)
+#         # Yield the finished partition (ObjectRef to avoid copying)
+#         yield ready[0]
+#         if launched < num_items:
+#             pending.append(ray_original_task.remote())
+#             launched += 1
 
 
 def run_ray_original(output_dir, num_nodes, cpus_per_node, size, mode):
@@ -156,17 +182,32 @@ def run_ray_original(output_dir, num_nodes, cpus_per_node, size, mode):
     for i in range(5):
         if mode == "ray_original":
             f_refs = [ray_original_task.remote() for _ in range(NUM_WARMUP_ITEMS)]
+            warmup_tasks = [g_empty.remote(f_ref) for f_ref in f_refs]
+            # ray.get(warmup_tasks)
+            while warmup_tasks:
+                ready_tasks, warmup_tasks = ray.wait(warmup_tasks, num_returns=1, fetch_local=False)
         elif mode == "ray_original_streaming":
+            MAX_INFLIGHT = num_nodes * cpus_per_node * 2  # good default
             f_refs = []
-            for _ in range(NUM_WARMUP_ITEMS):
-                gen = ray_original_task_streaming.remote()
-                f_refs.append(ray.get(next(gen)))
+            for j in range(NUM_WARMUP_ITEMS):
+                gen = ray_original_task_streaming.remote(num_partitions=1)
+                f_refs.append(gen)
+            inflight = []
+            for g in f_refs:                 # iterate EACH generator you created
+                for ref in g:                # each yields exactly 1 partition in your code
+                    inflight.append(g_empty.remote(ref))
+                    if len(inflight) >= MAX_INFLIGHT:
+                        _, inflight = ray.wait(inflight, num_returns=1, fetch_local=False)
+
+            # drain
+            while inflight:
+                _, inflight = ray.wait(inflight, num_returns=1, fetch_local=False)
         else:
             raise ValueError(f"Unknown mode: {mode}")
-        warmup_tasks = [g_empty.remote(f_ref) for f_ref in f_refs]
-        # ray.get(warmup_tasks)
-        while warmup_tasks:
-            ready_tasks, warmup_tasks = ray.wait(warmup_tasks, num_returns=1, fetch_local=False)
+        # warmup_tasks = [g_empty.remote(f_ref) for f_ref in f_refs]
+        # # ray.get(warmup_tasks)
+        # while warmup_tasks:
+        #     ready_tasks, warmup_tasks = ray.wait(warmup_tasks, num_returns=1, fetch_local=False)
             # for ready_task in ready_tasks:
             #     ray.get(ready_task)
             # del ready_tasks
@@ -177,19 +218,37 @@ def run_ray_original(output_dir, num_nodes, cpus_per_node, size, mode):
         logging.info(f"Start {i}-th benchmark")
         start_time = time.perf_counter()
         if mode == "ray_original":
-            f_refs = [ray_original_task.remote() for _ in range(NUM_WARMUP_ITEMS)]
+            f_refs = [ray_original_task.remote() for _ in range(NUM_ITEMS)]
+            tasks = [g_empty.remote(f_ref) for f_ref in f_refs]
+            del f_refs
+            # ray.get(tasks)
+            while tasks:
+                ready_tasks, tasks = ray.wait(tasks, num_returns=1, fetch_local=False)
         elif mode == "ray_original_streaming":
+            MAX_INFLIGHT = num_nodes * cpus_per_node * 2  # good default
             f_refs = []
-            for _ in range(NUM_WARMUP_ITEMS):
-                gen = ray_original_task_streaming.remote()
-                f_refs.append(ray.get(next(gen)))
+            for j in range(NUM_ITEMS):
+                gen = ray_original_task_streaming.remote(num_partitions=1)
+                f_refs.append(gen)
+            inflight = []
+            for g in f_refs:                 # iterate EACH generator you created
+                for ref in g:                # each yields exactly 1 partition in your code
+                    inflight.append(g_empty.remote(ref))
+                    if len(inflight) >= MAX_INFLIGHT:
+                        _, inflight = ray.wait(inflight, num_returns=1, fetch_local=False)
+
+            # drain
+            while inflight:
+                _, inflight = ray.wait(inflight, num_returns=1, fetch_local=False)
+            # f_refs.append(gen)
+            # TODO: change to ray.wait on the f_refs
         else:
             raise ValueError(f"Unknown mode: {mode}")
-        tasks = [g_empty.remote(f_ref) for f_ref in f_refs]
-        del f_refs
-        # ray.get(tasks)
-        while tasks:
-            ready_tasks, tasks = ray.wait(tasks, num_returns=1, fetch_local=False)
+        # tasks = [g_empty.remote(f_ref) for f_ref in f_refs]
+        # del f_refs
+        # # ray.get(tasks)
+        # while tasks:
+        #     ready_tasks, tasks = ray.wait(tasks, num_returns=1, fetch_local=False)
             # for ready_task in ready_tasks:
             #     ray.get(ready_task)
             # del ready_tasks
@@ -201,7 +260,7 @@ def run_ray_original(output_dir, num_nodes, cpus_per_node, size, mode):
     # total_data_size = NUM_ITEMS
         
     avg_time = total_time / profile_time
-    print("[Ray Original]")
+    print("[Ray Original]" if mode == "ray_original" else "[Ray Original Streaming]")
     print("Total data size in GB:", total_data_size)
     print("Total time taken in seconds:", avg_time)
     print("Throughput in GB/s:", total_data_size / avg_time)
