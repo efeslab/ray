@@ -17,13 +17,13 @@ ssh ubuntu@$HEAD_NODE <<EOF
 EOF
 
 # Start worker nodes
-for i in $(seq 1 $NUM_NODES); do
+for i in $(seq 10 11); do
   WORKER_NODE="ray-data-worker-$i"
   echo "[WORKER-$i] Starting..."
   ssh ubuntu@$WORKER_NODE <<EOF
     sudo rm -rf /tmp/ray
     sudo rm -rf /dev/shm/*
-    sleep 5
+    
     source ~/miniconda3/etc/profile.d/conda.sh
     conda activate raydata
     ray start --address=$HEAD_IP:$RAY_PORT --object-store-memory=$OBJ_STORE_MEM

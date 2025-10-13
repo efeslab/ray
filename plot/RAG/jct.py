@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 SYSTEM_NAME = "Radar"
 
 def plot_completion_time_with_staged(data_dict, output_dir, title="RAG Benchmark"):
-    FONT_SIZE = 18
+    FONT_SIZE = 24
 
     # Staged batch baseline (1 GPU) in minutes
     # staged_batch_times = {
@@ -23,7 +23,7 @@ def plot_completion_time_with_staged(data_dict, output_dir, title="RAG Benchmark
     gpu_labels, gpu_times = zip(*sorted_items)
 
     # Prepare all labels and bar values
-    labels = ["1 GPU\nStaged Batch"] + list(gpu_labels)
+    labels = ["1 GPU\nStaged\n Batch"] + list(gpu_labels)
     bar_positions = list(range(len(labels)))
 
     # Stacked bar for staged_batch
@@ -33,7 +33,7 @@ def plot_completion_time_with_staged(data_dict, output_dir, title="RAG Benchmark
         "Generation": "#fb9a99"
     }
     staged_bottom = 0
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(10, 7))
     for stage, color in staged_colors.items():
         time = staged_batch_times[stage]
         bar = plt.bar(0, time, bottom=staged_bottom, color=color, label=stage)
@@ -86,5 +86,5 @@ data = {
     "4 GPU": 2016.42 / 60,
     "8 GPU": 1119.92 / 60,
 }
-output_dir = "/m-coriander/coriander/yilegu/ray/ray/logs/finalized"
+output_dir = "/Users/guyile/Desktop/research/ray-data-yilegu/plot"
 plot_completion_time_with_staged(data, output_dir=output_dir)
